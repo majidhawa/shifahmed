@@ -25,7 +25,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Master German communication skills and prepare for study, work, and migration opportunities in Germany, Austria, and Switzerland.",
     video: "/videos/german-language.mp4",
-    thumbnail: "/videos/thumbnails/german-language.jpg",
+    thumbnail: "/videos/thumbnails/german-language.png",
     featured: true,
     views: 1280,
     color: "#1B5E20",
@@ -42,7 +42,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Train as a professional paramedic with advanced emergency medical care, ambulance operations, trauma management, and life-saving skills.",
     video: "/videos/paramedicine.mp4",
-    thumbnail: "/videos/thumbnails/paramedicine.jpg",
+    thumbnail: "/videos/thumbnails/paramedicine.png",
     featured: true,
     views: 2450,
     color: "#0D47A1",
@@ -59,7 +59,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Gain practical emergency response skills including CPR, first aid, trauma care, patient transport, and disaster preparedness.",
     video: "/videos/emt.mp4",
-    thumbnail: "/videos/thumbnails/emt.jpg",
+    thumbnail: "/videos/thumbnails/emt.png",
     featured: true,
     views: 1965,
     color: "#C62828",
@@ -76,7 +76,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Develop hands-on caregiving skills in personal care, elderly support, patient hygiene, mobility assistance, and professional ethics.",
     video: "/videos/caregiving.mp4",
-    thumbnail: "/videos/thumbnails/caregiving.jpg",
+    thumbnail: "/videos/thumbnails/caregiving.png",
     featured: false,
     views: 1578,
     color: "#6A1B9A",
@@ -93,7 +93,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Learn safe blood specimen collection techniques, infection prevention, laboratory ethics, and practical venipuncture skills.",
     video: "/videos/phlebotomy.mp4",
-    thumbnail: "/videos/thumbnails/phlebotomy.jpg",
+    thumbnail: "/videos/thumbnails/phlebotomy.png",
     featured: false,
     views: 980,
     color: "#EF6C00",
@@ -110,7 +110,7 @@ export const courseVideos: CourseVideo[] = [
     description:
       "Learn dialysis procedures, renal patient care, machine operation, infection control, and clinical monitoring techniques.",
     video: "/videos/dialysis.mp4",
-    thumbnail: "/videos/thumbnails/dialysis.jpg",
+    thumbnail: "/videos/thumbnails/dialysis.png",
     featured: false,
     views: 842,
     color: "#00838F",
