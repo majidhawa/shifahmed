@@ -409,7 +409,34 @@ Thank you for choosing Shifah Medical Training College, where your future in hea
             </div>
           </div>
         </Container>
-      </section>
+           </section>
+
+      {/* Floating WhatsApp Button */}
+      <a
+        href="https://wa.me/254794882948?text=Hello%20Shifah%20Medical%20Training%20College,%20I%20would%20like%20to%20make%20an%20enquiry."
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with Admissions on WhatsApp"
+        className="group fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-full bg-[#25D366] px-5 py-3 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:bg-[#20ba5a] animate-[pulse_2.5s_infinite]"
+      >
+        {/* WhatsApp Icon */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 32 32"
+          className="h-8 w-8 fill-current shrink-0"
+        >
+          <path d="M16.01 3C8.83 3 3 8.82 3 16c0 2.53.73 4.98 2.11 7.09L3 29l6.08-2.06A12.93 12.93 0 0 0 16.01 29C23.19 29 29 23.18 29 16S23.19 3 16.01 3Zm0 23.67c-2.13 0-4.22-.57-6.06-1.65l-.43-.25-3.61 1.22 1.21-3.52-.28-.45A10.61 10.61 0 0 1 5.4 16c0-5.86 4.76-10.62 10.61-10.62S26.63 10.14 26.63 16s-4.76 10.67-10.62 10.67Zm5.82-7.97c-.32-.16-1.89-.93-2.18-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.18.21-.36.24-.68.08-.32-.16-1.34-.49-2.55-1.56-.94-.84-1.58-1.87-1.76-2.19-.18-.32-.02-.49.14-.65.15-.15.32-.39.47-.58.16-.18.21-.32.32-.53.11-.21.05-.39-.03-.55-.08-.16-.71-1.71-.97-2.35-.26-.61-.53-.53-.71-.54h-.61c-.21 0-.55.08-.84.39-.29.32-1.11 1.08-1.11 2.63s1.13 3.05 1.29 3.26c.16.21 2.21 3.37 5.35 4.73.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.16-1.52.26-.74.26-1.37.18-1.52-.08-.13-.29-.21-.61-.37Z" />
+        </svg>
+
+        <div className="hidden sm:block leading-tight">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
+            Need Help?
+          </p>
+          <p className="text-sm font-bold">
+            Chat with Admissions
+          </p>
+        </div>
+      </a>
     </main>
   );
 }
