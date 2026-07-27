@@ -249,7 +249,7 @@ Thank you for choosing Shifah Medical Training College, where your future in hea
         <div className="relative h-full min-h-[500px] order-1 lg:order-2">
 
           <img
-            src="/images/principal.png"
+            src="/images/Principal.png"
             alt="Principal Shifah Medical Training College"
             className="absolute inset-0 h-full w-full object-cover"
           />
