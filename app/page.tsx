@@ -244,10 +244,6 @@ Thank you for choosing Shifah Medical Training College, where your future in hea
 
         </div>
 
-
-
-
-
         {/* Image */}
 
         <div className="relative h-full min-h-[500px] order-1 lg:order-2">
