@@ -13,6 +13,7 @@ const links = [
   { href: '/contact', label: 'Contact' },
   { href: '/downloads', label: 'Downloads' },
   { href: '/announcements', label: 'Announcements' },
+  { href: '/videos', label: 'Videos' }
 ];
 
 export function Navbar() {
