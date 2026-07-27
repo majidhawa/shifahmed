@@ -61,7 +61,231 @@ export default function HomePage() {
           </div>
         </Container>
       </section>
+    {/* Leadership Messages */}
+<section className="py-28 bg-slate-50 overflow-hidden">
+  <Container>
 
+    {/* Heading */}
+    <div className="max-w-3xl mx-auto text-center mb-16">
+
+      <div className="flex items-center justify-center gap-3 mb-5">
+        <span className="h-px w-12 bg-brand-gold" />
+
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand-gold">
+          College Leadership
+        </p>
+
+        <span className="h-px w-12 bg-brand-gold" />
+      </div>
+
+
+      <h2 className="text-4xl font-extrabold tracking-tight text-brand-dark md:text-5xl">
+        Messages From Our
+        <span className="text-brand-green"> Leadership</span>
+      </h2>
+
+
+      <p className="mt-6 text-base leading-8 text-slate-600">
+        Meet the leaders driving Shifah Medical Training College towards
+        excellence in healthcare education, innovation, professionalism and
+        community impact.
+      </p>
+
+    </div>
+
+
+
+    {/* Director */}
+    <div className="mb-16 rounded-[2.5rem] bg-white shadow-xl border border-slate-100 overflow-hidden">
+
+      <div className="grid lg:grid-cols-[380px_1fr] items-center">
+
+
+        {/* Image */}
+        <div className="relative h-full min-h-[500px]">
+
+          <img
+            src="/images/director.png"
+            alt="Director Shifah Medical Training College"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
+
+          <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
+
+
+          <div className="absolute bottom-8 left-8">
+
+            <p className="text-xl font-bold text-white">
+              Ms. Zaituni Kanenje
+            </p>
+
+            <p className="text-sm uppercase tracking-widest text-brand-gold">
+              College Director
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        {/* Message */}
+        <div className="p-8 md:p-12 lg:p-16">
+
+
+          <div className="flex items-center gap-3 mb-6">
+
+            <span className="h-10 w-1 rounded-full bg-brand-gold" />
+
+            <h3 className="text-3xl font-extrabold text-brand-dark">
+              Director's Message
+            </h3>
+
+          </div>
+
+
+
+          <div className="relative">
+
+            <span className="absolute -top-8 left-0 text-7xl font-serif text-brand-green/20">
+              "
+            </span>
+
+
+            <p className="relative text-base leading-8 text-slate-600 whitespace-pre-line">
+Dear Prospective Students, Esteemed Parents, Development Partners and Distinguished Stakeholders,
+
+It gives me immense pleasure to welcome you to Shifah Medical Training College (SMTC)—an institution dedicated to shaping the future of healthcare through excellence in education, innovation and professional development.
+
+At SMTC, we recognize that the quality of healthcare services depends on the quality of the professionals entrusted with delivering them. Guided by this conviction, we have established a learning institution that combines academic excellence, practical competence, ethical values and technological advancement to prepare graduates who are ready to make a meaningful impact in society.
+
+Our strategic vision is to nurture healthcare professionals who are knowledgeable, compassionate, innovative and responsive to the evolving demands of both national and international healthcare systems. Through a competency-based approach, state-of-the-art learning resources, experienced tutors and strong collaborations with healthcare institutions, we provide an educational experience that equips our students for lifelong success.
+
+As we pursue our guiding philosophy of "Health through Innovation and Research," we remain committed to fostering a culture of continuous improvement, critical thinking, creativity and evidence-based practice. These principles enable our graduates to become transformative leaders who uphold the highest standards of professionalism and patient care.
+
+Beyond academic achievement, we strive to develop individuals of integrity, resilience, and social responsibility who are prepared to contribute positively to their communities and the global healthcare workforce.
+
+I warmly invite you to become part of the Shifah Medical Training College family. Together, let us embrace opportunities, inspire innovation and cultivate excellence as we prepare the next generation of healthcare professionals.
+
+Thank you for placing your trust in Shifah Medical Training College. We look forward to partnering with you on this exciting journey of learning, growth, and professional achievement.
+
+Welcome to Shifah Medical Training College—where excellence is nurtured, innovation is inspired and future healthcare leaders are made.
+            </p>
+
+
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+    </div>
+
+
+
+
+
+
+    {/* Principal */}
+    <div className="rounded-[2.5rem] bg-white shadow-xl border border-slate-100 overflow-hidden">
+
+
+      <div className="grid lg:grid-cols-[1fr_380px] items-center">
+
+
+        {/* Message */}
+
+        <div className="p-8 md:p-12 lg:p-16 order-2 lg:order-1">
+
+
+          <div className="flex items-center gap-3 mb-6">
+
+            <span className="h-10 w-1 rounded-full bg-brand-green" />
+
+            <h3 className="text-3xl font-extrabold text-brand-dark">
+              Principal's Message
+            </h3>
+
+          </div>
+
+
+
+          <div className="relative">
+
+
+            <span className="absolute -top-8 left-0 text-7xl font-serif text-brand-gold/30">
+              "
+            </span>
+
+
+
+            <p className="relative text-base leading-8 text-slate-600 whitespace-pre-line">
+
+It is my great pleasure to welcome you to Shifah Medical Training College, a centre of excellence committed to transforming lives through quality healthcare education. Our mission is to nurture competent, ethical and compassionate healthcare professionals who are equipped with the knowledge, practical skills and integrity needed to meet the evolving demands of the healthcare sector.
+
+At SMTC, we believe that every student has the potential to make a meaningful difference in society. Through a learner-centred approach, experienced tutors,modern training methodologies and hands-on clinical exposure, we prepare our students to excel both academically and professionally.
+
+Our commitment extends beyond academic achievement. We strive to cultivate leadership, professionalism, critical thinking, innovation and a lifelong passion for learning. Guided by our motto, "Health through Innovation and Research," we continuously improve our programmes to align with national and international healthcare standards.
+
+Whether you are joining us to begin your healthcare career or to advance your professional journey, you will find a supportive learning environment that encourages excellence, integrity and service to humanity.
+
+On behalf of the Board of Directors, Management and Staff, I warmly welcome you to the Shifah Medical Training College family. We look forward to walking with you on your journey towards a successful and rewarding healthcare career.
+
+Thank you for choosing Shifah Medical Training College, where your future in healthcare begins.
+
+            </p>
+
+
+          </div>
+
+
+        </div>
+
+
+
+
+
+        {/* Image */}
+
+        <div className="relative h-full min-h-[500px] order-1 lg:order-2">
+
+          <img
+            src="/images/principal.png"
+            alt="Principal Shifah Medical Training College"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
+
+          <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
+
+
+          <div className="absolute bottom-8 right-8 text-right">
+
+            <p className="text-xl font-bold text-white">
+              Miss. Miriam M. Gikonyo
+            </p>
+
+            <p className="text-sm uppercase tracking-widest text-brand-gold">
+              College Principal
+            </p>
+
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+
+    </div>
+
+
+  </Container>
+</section>
       <section className="bg-slate-50 py-20">
         <Container>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-green">Featured Courses</p>

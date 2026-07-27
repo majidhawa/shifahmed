@@ -85,6 +85,8 @@ export function Footer() {
             <Link href="/apply">Apply Now</Link>
              <Link href="/downloads">Downloads</Link>
               <Link href="/announcements">Announcements</Link>
+              <Link href="/contacts">Contacts</Link>
+              <Link href="/videos">Videos</Link>
           </div>
         </div>
 
