@@ -26,18 +26,12 @@ export default function VideosPage() {
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
 
-        {courseVideos.map((video) => (
-
-  <VideoCard
-    key={video.id}
-    title={video.title}
-    course={video.course}
-    description={video.description}
-    video={video.video}
-    thumbnail={video.thumbnail}
-  />
-
-))}
+          {courseVideos.map((video) => (
+            <VideoCard
+              key={video.id}
+              {...video}
+            />
+          ))}
 
         </div>
 
