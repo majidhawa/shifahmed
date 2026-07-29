@@ -117,11 +117,11 @@ export default function HomePage() {
           <div className="absolute bottom-8 left-8">
 
             <p className="text-xl font-bold text-white">
-              Ms. Zaituni Kanenje
+              Ms. Zaitun Kanenje
             </p>
 
             <p className="text-sm uppercase tracking-widest text-brand-gold">
-              College Director
+              College Executive Director
             </p>
 
           </div>
@@ -139,7 +139,7 @@ export default function HomePage() {
             <span className="h-10 w-1 rounded-full bg-brand-gold" />
 
             <h3 className="text-3xl font-extrabold text-brand-dark">
-              Director's Message
+              Executive Director's Message
             </h3>
 
           </div>
@@ -183,6 +183,90 @@ Welcome to Shifah Medical Training College—where excellence is nurtured, innov
       </div>
 
     </div>
+
+
+
+ {/* Operations Director */}
+    <div className="mb-16 rounded-[2.5rem] bg-white shadow-xl border border-slate-100 overflow-hidden">
+
+      <div className="grid lg:grid-cols-[380px_1fr] items-center">
+
+
+        {/* Image */}
+        <div className="relative h-full min-h-[500px]">
+
+          <img
+            src="/images/jactone.jpg"
+            alt="Operations Director Shifah Medical Training College"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
+
+          <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
+
+
+          <div className="absolute bottom-8 left-8">
+
+            <p className="text-xl font-bold text-white">
+              Mr. Jactone M. Njoroge,PHN
+            </p>
+
+            <p className="text-sm uppercase tracking-widest text-brand-gold">
+              Operations Director
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        {/* Message */}
+        <div className="p-8 md:p-12 lg:p-16">
+
+
+          <div className="flex items-center gap-3 mb-6">
+
+            <span className="h-10 w-1 rounded-full bg-brand-gold" />
+
+            <h3 className="text-3xl font-extrabold text-brand-dark">
+              Operations Director's Message
+            </h3>
+
+          </div>
+
+
+
+          <div className="relative">
+
+            <span className="absolute -top-8 left-0 text-7xl font-serif text-brand-green/20">
+              "
+            </span>
+
+
+            <p className="relative text-base leading-8 text-slate-600 whitespace-pre-line">
+
+Welcome to Shifah Medical Training College (SMTC).
+
+At SMTC, operational excellence is at the heart of everything we do. We are committed to providing a safe, efficient and student-centred learning environment that fosters academic excellence, professional growth and practical competence. Our goal is to equip every learner with the knowledge, skills and values required to excel in the healthcare profession.
+
+We are proud to be part of your journey and remain committed to your success.
+
+Jactone A. Ocharo, PHN
+Operations Director
+Shifah Medical Training College (SMTC) </p>
+
+
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+    </div>
+
 
 
 
@@ -249,7 +333,7 @@ Thank you for choosing Shifah Medical Training College, where your future in hea
         <div className="relative h-full min-h-[500px] order-1 lg:order-2">
 
           <img
-            src="/images/Principal.png"
+            src="/images/Principal.jpg"
             alt="Principal Shifah Medical Training College"
             className="absolute inset-0 h-full w-full object-cover"
           />
