@@ -295,7 +295,7 @@ export const courses: Course[] = [
     slug: 'dialysis',
     title: 'Certificate in Dialysis Technology',
     cardTitle: 'Dialysis Technology',
-    duration: '3 Months',
+    duration: '6 Months',
     fee: 'Contact admissions for final fee guidance',
     entry: 'Background in health related courses',
     heroImage: '/images/dialysis.png',
