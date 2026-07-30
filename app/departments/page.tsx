@@ -29,7 +29,7 @@ const departmentDetails: Record<
   },
 
 
-  "Department of Nursing": {
+  "Department of Nursing Support Services": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <path d="M12 21c-5-4-8-7-8-11a4 4 0 018-2 4 4 0 018 2c0 4-3 7-8 11z"/>

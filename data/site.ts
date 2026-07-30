@@ -65,7 +65,7 @@ export const site = {
   'Department of Emergency Medicine',
   'Department of Pathology',
   'Department of Laboratory',
-  'Department of Nursing',
+  'Department of Nursing Support Services',
   'Department of Linguistics'
 ],
   partners: [
