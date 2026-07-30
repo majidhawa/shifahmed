@@ -62,11 +62,11 @@ export const site = {
     { title: 'Innovation', text: 'We embrace creativity, adaptability, and continuous improvement in learning and service.' }
   ],
   departments: [
-  'Department of Emergency Medical Services',
-  'Department of Renal Care and Medical Technology',
-  'Department of Laboratory and Diagnostic Support Services',
-  'Department of Nursing Support and Community Healthcare',
-  'Department of Languages and International Studies'
+  'Department of Emergency Medicine',
+  'Department of Pathology',
+  'Department of Laboratory',
+  'Department of Nursing',
+  'Department of Linguistics'
 ],
   partners: [
     { name: 'NITA', image: '/images/NITA.jpeg' },

@@ -12,7 +12,7 @@ const departmentDetails: Record<
   }
 > = {
 
-  "Department of Emergency Medical Services": {
+  "Department of Emergency Medicine": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -23,27 +23,28 @@ const departmentDetails: Record<
     text:
       "Training competent emergency healthcare professionals equipped with skills in emergency response, trauma management, patient stabilization, and pre-hospital care.",
     courses: [
-      "Emergency Medical Technology (EMT)",
+      "Certificate in Emergency Medical Technology (EMT)",
       "Diploma in Paramedicine",
     ],
   },
 
 
-  "Department of Renal Care and Medical Technology": {
+  "Department of Nursing": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <path d="M12 21c-5-4-8-7-8-11a4 4 0 018-2 4 4 0 018 2c0 4-3 7-8 11z"/>
       </svg>
     ),
     text:
-      "Providing specialized training in renal healthcare services, dialysis procedures, patient monitoring, and medical technology applications.",
+      "It prepares compassionate and skilled healthcare professionals who provide quality patient care, health education, and support in various healthcare settings. Students are trained in clinical nursing practices, patient management, community health, and modern healthcare approaches to develop the knowledge and skills needed to promote wellness and save lives..",
     courses: [
-      "Dialysis Technology",
+      "Proficiency in Dialysis Technology",
+      "Certificate in Caregiving Level 4",
     ],
   },
 
 
-  "Department of Laboratory and Diagnostic Support Services": {
+  "Department of Laboratory": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <path d="M9 3h6"/>
@@ -53,26 +54,26 @@ const departmentDetails: Record<
     text:
       "Equipping students with practical diagnostic support skills including specimen collection, blood handling procedures, and laboratory safety practices.",
     courses: [
-      "Safe Phlebotomy",
+      "Proficiency in Safe Phlebotomy",
     ],
   },
 
 
-  "Department of Nursing Support and Community Healthcare": {
+  "Department of Pathology": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/>
       </svg>
     ),
     text:
-      "Preparing compassionate healthcare providers with skills in patient support, elderly care, community health, and professional caregiving.",
+      "providing accurate laboratory investigations that support disease diagnosis, treatment, and prevention. Students are trained in specimen collection, laboratory procedures, medical testing, and analysis of samples such as blood, urine, and tissues using modern laboratory techniques.",
     courses: [
-      "Caregiving Level 4",
+      "Diploma in Mortuary Science",
     ],
   },
 
 
-  "Department of Languages and International Studies": {
+  "Department of Linguistics": {
     icon: (
       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10"/>
@@ -81,10 +82,10 @@ const departmentDetails: Record<
       </svg>
     ),
     text:
-      "Developing international communication skills that create opportunities for education, employment, and global mobility.",
+      "It focuses on the scientific study of languages, communication, and their role in society. Students are equipped with skills in language structure, pronunciation, interpretation, translation, and effective communication. The department prepares learners to use language professionally in areas such as education, healthcare, international relations, research, and community development.",
     courses: [
-      "German Language A1 & A2",
-      "German Language B1 & B2",
+      "Proficiency in German Language A1 & A2",
+      "Proficiency in German Language B1 & B2",
     ],
   },
 
