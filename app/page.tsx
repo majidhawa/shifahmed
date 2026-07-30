@@ -250,7 +250,7 @@ Welcome to Shifah Medical Training College (SMTC).
 
 At SMTC, operational excellence is at the heart of everything we do. We are committed to providing a safe, efficient and student-centred learning environment that fosters academic excellence, professional growth and practical competence. Our goal is to equip every learner with the knowledge, skills and values required to excel in the healthcare profession.
 
-We are proud to be part of your journey and remain committed to your success.(SMTC)</p>
+We are proud to be part of your journey and remain committed to your success.</p>
 
 
           </div>
@@ -262,11 +262,6 @@ We are proud to be part of your journey and remain committed to your success.(SM
       </div>
 
     </div>
-
-
-
-
-
 
 
     {/* Principal */}
@@ -292,15 +287,12 @@ We are proud to be part of your journey and remain committed to your success.(SM
           </div>
 
 
-
           <div className="relative">
 
 
             <span className="absolute -top-8 left-0 text-7xl font-serif text-brand-gold/30">
               "
             </span>
-
-
 
             <p className="relative text-base leading-8 text-slate-600 whitespace-pre-line">
 

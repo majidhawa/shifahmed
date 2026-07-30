@@ -1,107 +1,252 @@
 import Link from 'next/link';
 import { site } from '@/data/site';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  MessageCircle,
+} from 'lucide-react';
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTiktok,
+} from 'react-icons/fa';
 
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-slate-200 bg-brand-dark text-white">
-      <div className="container-shell grid gap-10 py-14 md:grid-cols-3">
+
+      <div className="container-shell grid gap-10 py-14 md:grid-cols-4">
+
+        {/* ABOUT COLLEGE */}
         <div>
-          <h3 className="text-xl font-semibold">{site.shortName}</h3>
-          <p className="mt-3 max-w-sm text-sm leading-7 text-white/75 italic">
-            &ldquo;{site.mission}&rdquo;
+          <h3 className="text-xl font-bold text-white">
+            {site.shortName}
+          </h3>
+
+          <p className="mt-4 text-sm leading-7 text-white/70 italic">
+            "{site.mission}"
           </p>
-          <div className="mt-5 flex items-center gap-2">
-  {/* Facebook */}
-  <a
-    href="https://www.facebook.com/profile.php?id=61589605739657"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Facebook"
-    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-white/10 hover:text-white"
-  >
-    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-    </svg>
-  </a>
 
-  {/* Instagram */}
-  <a
-    href="https://www.instagram.com/shifahmedicalcollege/"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="Instagram"
-    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-white/10 hover:text-white"
-  >
-    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-      <rect x="2" y="2" width="20" height="20" rx="5"/>
-      <circle cx="12" cy="12" r="4"/>
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-    </svg>
-  </a>
 
-  {/* LinkedIn */}
-  <a
-    href="https://www.linkedin.com/company/shifah-medical-training-college/"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="LinkedIn"
-    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-[#0077B5] hover:text-white"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path d="M4.98 3.5C4.98 4.88 3.86 6 2.48 6S0 4.88 0 3.5 1.12 1 2.48 1s2.5 1.12 2.5 2.5zM0 8h5v16H0V8zm8 0h4.8v2.3h.1c.7-1.3 2.4-2.7 5-2.7 5.3 0 6.3 3.5 6.3 8V24h-5v-7.1c0-1.7 0-3.9-2.4-3.9s-2.8 1.8-2.8 3.8V24H8V8z"/>
-    </svg>
-  </a>
+          {/* SOCIAL MEDIA */}
+          <div className="mt-6 flex gap-3">
 
-  {/* TikTok */}
-  <a
-    href="https://www.tiktok.com/@shifah.medical.tr"
-    target="_blank"
-    rel="noreferrer"
-    aria-label="TikTok"
-    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-black hover:text-white"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.35h-3.4v13.29a2.89 2.89 0 1 1-2.89-2.89c.28 0 .55.04.81.11V9.39a6.3 6.3 0 0 0-.81-.05A6.29 6.29 0 1 0 15.82 15V8.57a8.24 8.24 0 0 0 4.77 1.52V6.69z"/>
-    </svg>
-  </a>
-</div>
-          <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">Quick Links</h4>
-          <div className="mt-4 grid gap-3 text-sm text-white/80">
-            <Link href="/courses">Courses</Link>
-            <Link href="/admissions">Admissions</Link>
-            <Link href="/departments">Departments</Link>
-            <Link href="/apply">Apply Now</Link>
-             <Link href="/downloads">Downloads</Link>
-              <Link href="/announcements">Announcements</Link>
-              <Link href="/contacts">Contacts</Link>
-              <Link href="/videos">Videos</Link>
+            <a
+              href="https://www.facebook.com/profile.php?id=61589605739657"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Facebook"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-blue-600 hover:text-white"
+            >
+              <FaFacebookF size={14} />
+            </a>
+
+
+            <a
+              href="https://www.instagram.com/shifahmedicalcollege/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-pink-600 hover:text-white"
+            >
+              <FaInstagram size={15} />
+            </a>
+
+
+            <a
+              href="https://www.linkedin.com/company/shifah-medical-training-college/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-blue-700 hover:text-white"
+            >
+              <FaLinkedinIn size={15} />
+            </a>
+
+
+            <a
+              href="https://www.tiktok.com/@shifah.medical.tr"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="TikTok"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/70 transition hover:bg-black hover:text-white"
+            >
+              <FaTiktok size={14} />
+            </a>
+
           </div>
         </div>
 
+
+
+        {/* QUICK LINKS */}
         <div>
-          <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">Contact</h4>
-          <div className="mt-4 space-y-3 text-sm text-white/80">
-            <p>{site.location}</p>
-            <p>{site.phone}</p>
-            <p>{site.email}</p>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
+            Quick Links
+          </h4>
+
+
+          <div className="mt-5 grid gap-3 text-sm text-white/75">
+
+            <Link href="/" className="hover:text-brand-gold transition">
+              Home
+            </Link>
+
+            <Link href="/about" className="hover:text-brand-gold transition">
+              About Us
+            </Link>
+
+            <Link href="/courses" className="hover:text-brand-gold transition">
+              Courses
+            </Link>
+
+            <Link href="/admissions" className="hover:text-brand-gold transition">
+              Admissions
+            </Link>
+
+            <Link href="/departments" className="hover:text-brand-gold transition">
+              Departments
+            </Link>
+
+            <Link href="/contact" className="hover:text-brand-gold transition">
+              Contact
+            </Link>
+
+            <Link href="/apply" className="hover:text-brand-gold transition">
+              Apply Now
+            </Link>
+
           </div>
         </div>
+
+
+
+
+        {/* RESOURCES */}
+        <div>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
+            Resources
+          </h4>
+
+
+          <div className="mt-5 grid gap-3 text-sm text-white/75">
+
+            <Link href="/downloads" className="hover:text-brand-gold transition">
+              Downloads
+            </Link>
+
+            <Link href="/videos" className="hover:text-brand-gold transition">
+              Videos
+            </Link>
+
+            <Link href="/announcements" className="hover:text-brand-gold transition">
+              Announcements
+            </Link>
+
+            <Link href="/faqs" className="hover:text-brand-gold transition">
+              FAQs
+            </Link>
+
+        
+          </div>
+        </div>
+
+
+        {/* CONTACT DETAILS */}
+        <div>
+
+          <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
+            Contact Us
+          </h4>
+
+
+          <div className="mt-5 space-y-4 text-sm text-white/75">
+
+
+            <p className="flex items-start gap-3">
+              <MapPin
+                size={18}
+                className="mt-1 text-brand-gold shrink-0"
+              />
+
+              <span>
+                {site.location}
+              </span>
+            </p>
+
+
+            <p className="flex items-center gap-3">
+              <Phone
+                size={18}
+                className="text-brand-gold shrink-0"
+              />
+
+              <span>
+                {site.phone}
+              </span>
+            </p>
+
+
+            <p className="flex items-center gap-3">
+              <Mail
+                size={18}
+                className="text-brand-gold shrink-0"
+              />
+
+              <span>
+                {site.email}
+              </span>
+            </p>
+
+
+
+            <a
+              href="https://wa.me/254794882948"
+              target="_blank"
+              rel="noreferrer"
+              className="
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              bg-brand-green
+              px-5
+              py-2.5
+              text-sm
+              font-semibold
+              text-white
+              transition
+              hover:bg-green-800
+              "
+            >
+
+              <MessageCircle size={17} />
+
+              Chat Admissions
+
+            </a>
+
+
+          </div>
+
+        </div>
+
+
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-white/55">
+
+
+
+      {/* COPYRIGHT */}
+
+      <div className="border-t border-white/10 py-5 text-center text-xs text-white/50">
+
         © 2026 {site.shortName}. All rights reserved.
+
       </div>
+
+
     </footer>
   );
 }
