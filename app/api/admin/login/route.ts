@@ -14,9 +14,7 @@ export async function POST(request: Request) {
     /* =====================================================
        READ REQUEST
     ===================================================== */
-
     const body = await request.json();
-
     const email =
       typeof body.email === 'string'
         ? body.email.trim().toLowerCase()
