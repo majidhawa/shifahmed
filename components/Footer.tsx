@@ -1,11 +1,14 @@
+
 import Link from 'next/link';
 import { site } from '@/data/site';
+
 import {
   MapPin,
   Phone,
   Mail,
   MessageCircle,
 } from 'lucide-react';
+
 import {
   FaFacebookF,
   FaInstagram,
@@ -15,22 +18,30 @@ import {
 
 export function Footer() {
   return (
-    <footer className="mt-24 border-t border-slate-200 bg-brand-dark text-white">
+    <footer className="w-full bg-brand-dark text-white">
+
+      {/* =====================================================
+          MAIN FOOTER
+      ===================================================== */}
 
       <div className="container-shell grid gap-10 py-14 md:grid-cols-4">
 
-        {/* ABOUT COLLEGE */}
+        {/* ===================================================
+            ABOUT COLLEGE
+        =================================================== */}
+
         <div>
+
           <h3 className="text-xl font-bold text-white">
             {site.shortName}
           </h3>
 
           <p className="mt-4 text-sm leading-7 text-white/70 italic">
-            "{site.mission}"
+            &quot;{site.mission}&quot;
           </p>
 
-
           {/* SOCIAL MEDIA */}
+
           <div className="mt-6 flex gap-3">
 
             <a
@@ -43,7 +54,6 @@ export function Footer() {
               <FaFacebookF size={14} />
             </a>
 
-
             <a
               href="https://www.instagram.com/shifahmedicalcollege/"
               target="_blank"
@@ -54,7 +64,6 @@ export function Footer() {
               <FaInstagram size={15} />
             </a>
 
-
             <a
               href="https://www.linkedin.com/company/shifah-medical-training-college/"
               target="_blank"
@@ -64,7 +73,6 @@ export function Footer() {
             >
               <FaLinkedinIn size={15} />
             </a>
-
 
             <a
               href="https://www.tiktok.com/@shifah.medical.tr"
@@ -77,149 +85,181 @@ export function Footer() {
             </a>
 
           </div>
+
         </div>
 
+        {/* ===================================================
+            QUICK LINKS
+        =================================================== */}
 
-
-        {/* QUICK LINKS */}
         <div>
+
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
             Quick Links
           </h4>
 
-
           <div className="mt-5 grid gap-3 text-sm text-white/75">
 
-            <Link href="/" className="hover:text-brand-gold transition">
+            <Link
+              href="/"
+              className="transition hover:text-brand-gold"
+            >
               Home
             </Link>
 
-            <Link href="/about" className="hover:text-brand-gold transition">
+            <Link
+              href="/about"
+              className="transition hover:text-brand-gold"
+            >
               About Us
             </Link>
 
-            <Link href="/courses" className="hover:text-brand-gold transition">
+            <Link
+              href="/courses"
+              className="transition hover:text-brand-gold"
+            >
               Courses
             </Link>
 
-            <Link href="/admissions" className="hover:text-brand-gold transition">
+            <Link
+              href="/admissions"
+              className="transition hover:text-brand-gold"
+            >
               Admissions
             </Link>
 
-            <Link href="/departments" className="hover:text-brand-gold transition">
+            <Link
+              href="/departments"
+              className="transition hover:text-brand-gold"
+            >
               Departments
             </Link>
 
-            <Link href="/contact" className="hover:text-brand-gold transition">
+            <Link
+              href="/contact"
+              className="transition hover:text-brand-gold"
+            >
               Contact
             </Link>
 
-            <Link href="/apply" className="hover:text-brand-gold transition">
+            <Link
+              href="/apply"
+              className="transition hover:text-brand-gold"
+            >
               Apply Now
             </Link>
 
+            <Link
+              href="/student/login"
+              className="transition hover:text-brand-gold"
+            >
+              Student Portal
+            </Link>
+
           </div>
+
         </div>
 
+        {/* ===================================================
+            RESOURCES
+        =================================================== */}
 
-
-
-        {/* RESOURCES */}
         <div>
+
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
             Resources
           </h4>
 
-
           <div className="mt-5 grid gap-3 text-sm text-white/75">
 
-            <Link href="/downloads" className="hover:text-brand-gold transition">
+            <Link
+              href="/downloads"
+              className="transition hover:text-brand-gold"
+            >
               Downloads
             </Link>
 
-            <Link href="/videos" className="hover:text-brand-gold transition">
+            <Link
+              href="/videos"
+              className="transition hover:text-brand-gold"
+            >
               Videos
             </Link>
 
-            <Link href="/announcements" className="hover:text-brand-gold transition">
+            <Link
+              href="/announcements"
+              className="transition hover:text-brand-gold"
+            >
               Announcements
             </Link>
 
-            <Link href="/faqs" className="hover:text-brand-gold transition">
+            <Link
+              href="/faqs"
+              className="transition hover:text-brand-gold"
+            >
               FAQs
             </Link>
 
-        
           </div>
+
         </div>
 
+        {/* ===================================================
+            CONTACT DETAILS
+        =================================================== */}
 
-        {/* CONTACT DETAILS */}
         <div>
 
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-gold">
             Contact Us
           </h4>
 
-
           <div className="mt-5 space-y-4 text-sm text-white/75">
 
-
             <p className="flex items-start gap-3">
+
               <MapPin
                 size={18}
-                className="mt-1 text-brand-gold shrink-0"
+                className="mt-1 shrink-0 text-brand-gold"
               />
 
               <span>
                 {site.location}
               </span>
+
             </p>
 
-
             <p className="flex items-center gap-3">
+
               <Phone
                 size={18}
-                className="text-brand-gold shrink-0"
+                className="shrink-0 text-brand-gold"
               />
 
               <span>
                 {site.phone}
               </span>
+
             </p>
 
-
             <p className="flex items-center gap-3">
+
               <Mail
                 size={18}
-                className="text-brand-gold shrink-0"
+                className="shrink-0 text-brand-gold"
               />
 
               <span>
                 {site.email}
               </span>
+
             </p>
-
-
 
             <a
               href="https://wa.me/254794882948"
               target="_blank"
               rel="noreferrer"
-              className="
-              inline-flex
-              items-center
-              gap-2
-              rounded-full
-              bg-brand-green
-              px-5
-              py-2.5
-              text-sm
-              font-semibold
-              text-white
-              transition
-              hover:bg-green-800
-              "
+              className="inline-flex items-center gap-2 rounded-full bg-brand-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800"
             >
 
               <MessageCircle size={17} />
@@ -228,17 +268,15 @@ export function Footer() {
 
             </a>
 
-
           </div>
 
         </div>
 
-
       </div>
 
-
-
-      {/* COPYRIGHT */}
+      {/* =====================================================
+          COPYRIGHT
+      ===================================================== */}
 
       <div className="border-t border-white/10 py-5 text-center text-xs text-white/50">
 
@@ -246,7 +284,7 @@ export function Footer() {
 
       </div>
 
-
     </footer>
   );
 }
+

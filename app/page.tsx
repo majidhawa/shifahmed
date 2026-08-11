@@ -4,6 +4,7 @@ import { CourseCard } from '@/components/CourseCard';
 import { HeroSlider } from '@/components/HeroSlider';
 import { PartnersMarquee } from '@/components/PartnersMarquee';
 import { courses, site } from '@/data/site';
+import { BoardSlider } from '@/components/BoardSlider';
 
 export default function HomePage() {
   return (
@@ -351,7 +352,8 @@ Thank you for choosing Shifah Medical Training College, where your future in hea
 
     </div>
 
-
+{/* Board of Directors */}
+<BoardSlider />
   </Container>
 </section>
       <section className="bg-slate-50 py-20">

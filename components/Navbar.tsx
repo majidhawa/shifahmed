@@ -28,6 +28,7 @@ const links = [
   { href: '/admissions', label: 'Admissions' },
   { href: '/departments', label: 'Departments' },
   { href: '/contact', label: 'Contact' },
+   { href: '/student/login', label: 'Student Portal' },
 ];
 
 
@@ -213,7 +214,12 @@ export function Navbar() {
               Apply Now
             </Link>
 
-
+<Link
+  href="/student/login"
+  className="..."
+>
+  Student Portal
+</Link>
           </div>
 
 
