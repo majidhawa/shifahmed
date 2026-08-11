@@ -123,7 +123,6 @@ export async function getStudentSession(): Promise<StudentSession | null> {
       'STUDENT SESSION ERROR:',
       error
     );
-
     return null;
   }
 }
