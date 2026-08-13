@@ -450,27 +450,29 @@ export default async function StudentDashboardPage() {
             LOGOUT
         ================================================= */}
 
-        <div className="border-t border-white/10 p-4">
+       <div className="border-t border-white/10 p-4">
 
-          <form
-            action="/api/student/logout"
-            method="POST"
-          >
+  <form
+    action="/api/student/logout"
+    method="POST"
+  >
 
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
-            >
+    <button
+      type="submit"
+      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
+    >
 
-              <LogOut
-                size={19}
-              />
+      <LogOut
+        size={19}
+      />
 
-              Logout
+      Logout
 
-            </button>
+    </button>
 
-          </form>
+  </form>
+
+
 
         </div>
 
