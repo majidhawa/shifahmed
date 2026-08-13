@@ -1,9 +1,9 @@
-
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
 import pool from '@/lib/db';
+
 import {
   getStudentSession,
 } from '@/lib/student-auth';
@@ -14,7 +14,6 @@ import {
   CreditCard,
   GraduationCap,
   FolderOpen,
-  User,
   Bell,
   LogOut,
   ChevronRight,
@@ -27,6 +26,18 @@ import {
 } from 'lucide-react';
 
 /* =========================================================
+   PROTECTED STUDENT DASHBOARD
+========================================================= */
+
+/*
+  IMPORTANT:
+  This page contains private student information.
+  Do not allow Next.js to statically cache it.
+*/
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+/* =========================================================
    STUDENT DASHBOARD
 ========================================================= */
 
@@ -36,8 +47,13 @@ export default async function StudentDashboardPage() {
      CHECK STUDENT SESSION
   ======================================================= */
 
-  const session =
-    await getStudentSession();
+  const session = await getStudentSession();
+
+  /*
+    If the student has logged out, the session will no
+    longer exist and they will immediately be sent back
+    to the login page.
+  */
 
   if (!session) {
     redirect('/student/login');
@@ -375,60 +391,56 @@ export default async function StudentDashboardPage() {
             Main Menu
           </p>
 
-          
+          <SidebarItem
+            href="/student/dashboard"
+            icon={
+              <LayoutDashboard
+                size={19}
+              />
+            }
+            label="Dashboard"
+            active
+          />
 
-            <SidebarItem
-              href="/student/dashboard"
-              icon={
-                <LayoutDashboard
-                  size={19}
-                />
-              }
-              label="Dashboard"
-              active
-            />
+          <SidebarItem
+            href="/student/dashboard/application"
+            icon={
+              <FileText
+                size={19}
+              />
+            }
+            label="My Application"
+          />
 
-            <SidebarItem
-              href="/student/dashboard/application"
-              icon={
-                <FileText
-                  size={19}
-                />
-              }
-              label="My Application"
-            />
+          <SidebarItem
+            href="/student/dashboard/payment"
+            icon={
+              <CreditCard
+                size={19}
+              />
+            }
+            label="Payment & Receipt"
+          />
 
-            <SidebarItem
-              href="/student/dashboard/payment"
-              icon={
-                <CreditCard
-                  size={19}
-                />
-              }
-              label="Payment & Receipt"
-            />
+          <SidebarItem
+            href="/student/dashboard/admission"
+            icon={
+              <GraduationCap
+                size={19}
+              />
+            }
+            label="Admission"
+          />
 
-            <SidebarItem
-              href="/student/dashboard/admission"
-              icon={
-                <GraduationCap
-                  size={19}
-                />
-              }
-              label="Admission"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/documents"
-              icon={
-                <FolderOpen
-                  size={19}
-                />
-              }
-              label="My Documents"
-            />
-
-
+          <SidebarItem
+            href="/student/dashboard/documents"
+            icon={
+              <FolderOpen
+                size={19}
+              />
+            }
+            label="My Documents"
+          />
 
           <p className="mb-3 mt-8 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
             Support
@@ -450,29 +462,27 @@ export default async function StudentDashboardPage() {
             LOGOUT
         ================================================= */}
 
-       <div className="border-t border-white/10 p-4">
+        <div className="border-t border-white/10 p-4">
 
-  <form
-    action="/api/student/logout"
-    method="POST"
-  >
+          <form
+            action="/api/student/logout"
+            method="POST"
+          >
 
-    <button
-      type="submit"
-      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
-    >
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
+            >
 
-      <LogOut
-        size={19}
-      />
+              <LogOut
+                size={19}
+              />
 
-      Logout
+              Logout
 
-    </button>
+            </button>
 
-  </form>
-
-
+          </form>
 
         </div>
 
@@ -835,10 +845,13 @@ export default async function StudentDashboardPage() {
                   </p>
 
                   <p className="mt-1 text-lg font-bold text-[#d7a93b]">
+
                     KSh{' '}
+
                     {Number(
                       student.application_fee || 0
                     ).toLocaleString()}
+
                   </p>
 
                 </div>
@@ -873,6 +886,7 @@ export default async function StudentDashboardPage() {
                     href="/student/dashboard/application"
                     className="flex items-center gap-1 text-xs font-semibold text-[#0f4f3f] hover:text-[#d7a93b]"
                   >
+
                     View All
 
                     <ChevronRight
@@ -1020,6 +1034,7 @@ export default async function StudentDashboardPage() {
                   href="/student/dashboard/contact"
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0f4f3f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0c3f32]"
                 >
+
                   Contact Admissions
 
                   <ChevronRight
@@ -1319,4 +1334,3 @@ function ActionLink({
     </Link>
   );
 }
-
