@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import StudentLogoutButton from '@/components/student/StudentLogoutButton';
+
 import pool from '@/lib/db';
 import {
   getStudentSession,
@@ -452,7 +452,25 @@ export default async function StudentDashboardPage() {
 
         <div className="border-t border-white/10 p-4">
 
-          <StudentLogoutButton />
+          <form
+            action="/api/student/logout"
+            method="POST"
+          >
+
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
+            >
+
+              <LogOut
+                size={19}
+              />
+
+              Logout
+
+            </button>
+
+          </form>
 
         </div>
 
