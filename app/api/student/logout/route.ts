@@ -7,12 +7,10 @@ import {
 /* =========================================================
    POST /api/student/logout
 ========================================================= */
-
 export async function POST(
   request: Request
 ) {
   await destroyStudentSession();
-
   return NextResponse.redirect(
     new URL(
       '/student/login',
