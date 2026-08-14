@@ -1287,31 +1287,7 @@ export function ApplyForm() {
         String(data.declaration)
       );
 
-      /* DOCUMENTS */
-
-      if (data.idDocument) {
-        formData.append(
-          'idDocument',
-          data.idDocument,
-          data.idDocument.name
-        );
-      }
-
-      if (data.kcseCertificate) {
-        formData.append(
-          'kcseCertificate',
-          data.kcseCertificate,
-          data.kcseCertificate.name
-        );
-      }
-
-      if (data.passportPhoto) {
-        formData.append(
-          'passportPhoto',
-          data.passportPhoto,
-          data.passportPhoto.name
-        );
-      }
+     
 
       /* SEND APPLICATION */
 
