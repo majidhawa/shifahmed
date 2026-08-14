@@ -200,7 +200,6 @@ const steps = [
   'Academic',
   'Course',
   'Guardian',
-  'Documents',
   'Review',
 ];
 
@@ -3822,34 +3821,7 @@ export function ApplyForm() {
                 />
               </ReviewSection>
 
-              <ReviewSection title="Documents">
-                <ReviewItem
-                  label="ID / Passport"
-                  value={
-                    data.idDocument
-                      ? data.idDocument.name
-                      : 'Not uploaded'
-                  }
-                />
-
-                <ReviewItem
-                  label="KCSE Certificate"
-                  value={
-                    data.kcseCertificate
-                      ? data.kcseCertificate.name
-                      : 'Not uploaded'
-                  }
-                />
-
-                <ReviewItem
-                  label="Passport Photo"
-                  value={
-                    data.passportPhoto
-                      ? data.passportPhoto.name
-                      : 'Not uploaded'
-                  }
-                />
-              </ReviewSection>
+              
 
               {/* DECLARATION */}
 
