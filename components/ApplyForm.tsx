@@ -1341,11 +1341,12 @@ export function ApplyForm() {
               responseText
             )
           : null;
-      } catch {
-        throw new Error(
-          'The server returned an invalid response.'
-        );
-      }
+     } catch {
+  throw new Error(
+    responseText ||
+    `Server returned HTTP ${response.status}`
+  );
+}
 
       if (
         !response.ok ||
