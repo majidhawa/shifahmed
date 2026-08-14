@@ -200,6 +200,7 @@ const steps = [
   'Academic',
   'Course',
   'Guardian',
+  'Documents',
   'Review',
 ];
 
@@ -1286,7 +1287,31 @@ export function ApplyForm() {
         String(data.declaration)
       );
 
-     
+      /* DOCUMENTS */
+
+      if (data.idDocument) {
+        formData.append(
+          'idDocument',
+          data.idDocument,
+          data.idDocument.name
+        );
+      }
+
+      if (data.kcseCertificate) {
+        formData.append(
+          'kcseCertificate',
+          data.kcseCertificate,
+          data.kcseCertificate.name
+        );
+      }
+
+      if (data.passportPhoto) {
+        formData.append(
+          'passportPhoto',
+          data.passportPhoto,
+          data.passportPhoto.name
+        );
+      }
 
       /* SEND APPLICATION */
 
@@ -1316,12 +1341,11 @@ export function ApplyForm() {
               responseText
             )
           : null;
-     } catch {
-  throw new Error(
-    responseText ||
-    `Server returned HTTP ${response.status}`
-  );
-}
+      } catch {
+        throw new Error(
+          'The server returned an invalid response.'
+        );
+      }
 
       if (
         !response.ok ||
@@ -3568,14 +3592,81 @@ export function ApplyForm() {
           </section>
         )}
 
-      
-
-        
         {/* =================================================
             STEP 6
         ================================================= */}
 
         {step === 6 && (
+          <section>
+            <SectionTitle
+              title="Supporting Documents"
+              description="Upload clear copies of the documents required for admission."
+            />
+
+            <div className="space-y-5">
+              <FileField
+                label="National ID / Passport"
+                required
+                file={data.idDocument}
+                error={errors.idDocument}
+                onChange={(file) =>
+                  updateField(
+                    'idDocument',
+                    file
+                  )
+                }
+              />
+
+              <FileField
+                label="KCSE Certificate / Result Slip"
+                required
+                file={
+                  data.kcseCertificate
+                }
+                error={
+                  errors.kcseCertificate
+                }
+                onChange={(file) =>
+                  updateField(
+                    'kcseCertificate',
+                    file
+                  )
+                }
+              />
+
+              <FileField
+                label="Passport Size Photo"
+                required
+                file={
+                  data.passportPhoto
+                }
+                error={
+                  errors.passportPhoto
+                }
+                onChange={(file) =>
+                  updateField(
+                    'passportPhoto',
+                    file
+                  )
+                }
+              />
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs leading-6 text-slate-500">
+                  Accepted formats: PDF, JPG and PNG.
+                  Maximum file size is 5 MB per
+                  document.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* =================================================
+            STEP 7
+        ================================================= */}
+
+        {step === 7 && (
           <section>
             <SectionTitle
               title="Review Your Application"
@@ -3821,7 +3912,34 @@ export function ApplyForm() {
                 />
               </ReviewSection>
 
-              
+              <ReviewSection title="Documents">
+                <ReviewItem
+                  label="ID / Passport"
+                  value={
+                    data.idDocument
+                      ? data.idDocument.name
+                      : 'Not uploaded'
+                  }
+                />
+
+                <ReviewItem
+                  label="KCSE Certificate"
+                  value={
+                    data.kcseCertificate
+                      ? data.kcseCertificate.name
+                      : 'Not uploaded'
+                  }
+                />
+
+                <ReviewItem
+                  label="Passport Photo"
+                  value={
+                    data.passportPhoto
+                      ? data.passportPhoto.name
+                      : 'Not uploaded'
+                  }
+                />
+              </ReviewSection>
 
               {/* DECLARATION */}
 

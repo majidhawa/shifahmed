@@ -1,10 +1,27 @@
 import { NextResponse } from 'next/server';
+import { mkdir, writeFile, unlink } from 'fs/promises';
+import path from 'path';
 import crypto from 'crypto';
 import pool from '@/lib/db';
 
 /* =========================================================
    CONFIGURATION
 ========================================================= */
+
+const UPLOAD_DIR = path.join(
+  process.cwd(),
+  'public',
+  'uploads',
+  'applications'
+);
+
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const ALLOWED_COURSES = [
   'EMT',
@@ -45,11 +62,88 @@ function generateApplicationNumber(): string {
   return `SMTC/${year}/${randomPart}`;
 }
 
+function getSafeFileName(fileName: string): string {
+  return fileName
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+}
+
+function getExtensionFromMime(mimeType: string): string {
+  switch (mimeType) {
+    case 'application/pdf':
+      return '.pdf';
+
+    case 'image/jpeg':
+      return '.jpg';
+
+    case 'image/png':
+      return '.png';
+
+    default:
+      return '';
+  }
+}
+
+async function saveUploadedFile(
+  value: FormDataEntryValue | null,
+  applicationNumber: string,
+  documentName: string
+): Promise<string | null> {
+  if (!(value instanceof File)) {
+    return null;
+  }
+
+  if (value.size === 0) {
+    return null;
+  }
+
+  if (!ALLOWED_FILE_TYPES.includes(value.type)) {
+    throw new Error(
+      `${documentName} must be a PDF, JPG or PNG file.`
+    );
+  }
+
+  if (value.size > MAX_FILE_SIZE) {
+    throw new Error(
+      `${documentName} exceeds the maximum file size of 5 MB.`
+    );
+  }
+
+  await mkdir(UPLOAD_DIR, {
+    recursive: true,
+  });
+
+  const extension =
+    path.extname(value.name).toLowerCase() ||
+    getExtensionFromMime(value.type);
+
+  const safeApplicationNumber =
+    getSafeFileName(applicationNumber);
+
+  const fileName =
+    `${safeApplicationNumber}_${documentName}_${Date.now()}${extension}`;
+
+  const filePath = path.join(
+    UPLOAD_DIR,
+    fileName
+  );
+
+  const buffer = Buffer.from(
+    await value.arrayBuffer()
+  );
+
+  await writeFile(filePath, buffer);
+
+  return `/uploads/applications/${fileName}`;
+}
+
 /* =========================================================
    POST APPLICATION
 ========================================================= */
 
 export async function POST(request: Request) {
+  let savedFiles: string[] = [];
+
   try {
     /* =====================================================
        READ FORM DATA
@@ -62,35 +156,15 @@ export async function POST(request: Request) {
     ===================================================== */
 
     const surname = clean(formData.get('surname'));
-
-    const middleName = clean(
-      formData.get('middleName')
-    );
-
-    const firstName = clean(
-      formData.get('firstName')
-    );
-
-    const dateOfBirth = clean(
-      formData.get('dateOfBirth')
-    );
-
-    const gender = clean(
-      formData.get('gender')
-    );
-
-    const nationality = clean(
-      formData.get('nationality')
-    );
-
-    const country = clean(
-      formData.get('country')
-    );
-
+    const middleName = clean(formData.get('middleName'));
+    const firstName = clean(formData.get('firstName'));
+    const dateOfBirth = clean(formData.get('dateOfBirth'));
+    const gender = clean(formData.get('gender'));
+    const nationality = clean(formData.get('nationality'));
+    const country = clean(formData.get('country'));
     const idPassportNumber = clean(
       formData.get('idPassportNumber')
     );
-
     const maritalStatus = clean(
       formData.get('maritalStatus')
     );
@@ -107,21 +181,10 @@ export async function POST(request: Request) {
       formData.get('postalCode')
     );
 
-    const town = clean(
-      formData.get('town')
-    );
-
-    const county = clean(
-      formData.get('county')
-    );
-
-    const mobile = clean(
-      formData.get('mobile')
-    );
-
-    const email = clean(
-      formData.get('email')
-    );
+    const town = clean(formData.get('town'));
+    const county = clean(formData.get('county'));
+    const mobile = clean(formData.get('mobile'));
+    const email = clean(formData.get('email'));
 
     /* =====================================================
        ACADEMIC
@@ -175,13 +238,8 @@ export async function POST(request: Request) {
        COURSE
     ===================================================== */
 
-    const course = clean(
-      formData.get('course')
-    );
-
-    const intake = clean(
-      formData.get('intake')
-    );
+    const course = clean(formData.get('course'));
+    const intake = clean(formData.get('intake'));
 
     /* =====================================================
        SPONSOR
@@ -255,11 +313,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      !mobile ||
-      !email ||
-      !county
-    ) {
+    if (!mobile || !email || !county) {
       return NextResponse.json(
         {
           success: false,
@@ -285,10 +339,6 @@ export async function POST(request: Request) {
       );
     }
 
-    /* =====================================================
-       COURSE VALIDATION
-    ===================================================== */
-
     if (!ALLOWED_COURSES.includes(course)) {
       return NextResponse.json(
         {
@@ -300,9 +350,6 @@ export async function POST(request: Request) {
       );
     }
 
-    /* =====================================================
-       INTAKE VALIDATION
-    ===================================================== */
 
     if (!ALLOWED_INTAKES.includes(intake)) {
       return NextResponse.json(
@@ -314,10 +361,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    /* =====================================================
-       SPONSOR VALIDATION
-    ===================================================== */
 
     if (!sponsorType) {
       return NextResponse.json(
@@ -344,14 +387,7 @@ export async function POST(request: Request) {
       );
     }
 
-    /* =====================================================
-       GUARDIAN VALIDATION
-    ===================================================== */
-
-    if (
-      !guardianName ||
-      !guardianMobile
-    ) {
+    if (!guardianName || !guardianMobile) {
       return NextResponse.json(
         {
           success: false,
@@ -361,10 +397,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    /* =====================================================
-       DECLARATION VALIDATION
-    ===================================================== */
 
     if (!declaration) {
       return NextResponse.json(
@@ -431,24 +463,40 @@ export async function POST(request: Request) {
       generateApplicationNumber();
 
     /* =====================================================
-       DOCUMENT UPLOADS TEMPORARILY DISABLED
-       
-       We are intentionally NOT saving:
-       
-       - ID document
-       - KCSE certificate
-       - Passport photo
-       
-       These will be connected to Supabase Storage later.
-       
-       The existing database columns remain untouched.
+       SAVE FILES
     ===================================================== */
 
-    const idDocument = null;
+    const idDocument = await saveUploadedFile(
+      formData.get('idDocument'),
+      applicationNumber,
+      'ID'
+    );
 
-    const kcseCertificate = null;
+    if (idDocument) {
+      savedFiles.push(idDocument);
+    }
 
-    const passportPhoto = null;
+    const kcseCertificate =
+      await saveUploadedFile(
+        formData.get('kcseCertificate'),
+        applicationNumber,
+        'KCSE'
+      );
+
+    if (kcseCertificate) {
+      savedFiles.push(kcseCertificate);
+    }
+
+    const passportPhoto =
+      await saveUploadedFile(
+        formData.get('passportPhoto'),
+        applicationNumber,
+        'PHOTO'
+      );
+
+    if (passportPhoto) {
+      savedFiles.push(passportPhoto);
+    }
 
     /* =====================================================
        DATABASE INSERT
@@ -457,7 +505,6 @@ export async function POST(request: Request) {
     const query = `
       INSERT INTO applications (
         application_number,
-
         surname,
         middle_name,
         first_name,
@@ -529,6 +576,7 @@ export async function POST(request: Request) {
         $39, $40, $41,
 
         $42, $43, $44, $45
+
       )
 
       RETURNING
@@ -543,10 +591,6 @@ export async function POST(request: Request) {
     `;
 
     const values = [
-      /* ===================================================
-         PERSONAL
-      =================================================== */
-
       applicationNumber,
       surname,
       middleName,
@@ -558,20 +602,12 @@ export async function POST(request: Request) {
       idPassportNumber,
       maritalStatus,
 
-      /* ===================================================
-         CONTACT
-      =================================================== */
-
       postalAddress,
       postalCode,
       town,
       county,
       mobile,
       email,
-
-      /* ===================================================
-         ACADEMIC
-      =================================================== */
 
       kcseIndex,
       kcseYear,
@@ -585,16 +621,8 @@ export async function POST(request: Request) {
       previousInstitution,
       highestQualification,
 
-      /* ===================================================
-         COURSE
-      =================================================== */
-
       course,
       intake,
-
-      /* ===================================================
-         SPONSOR
-      =================================================== */
 
       sponsorType,
       sponsorName,
@@ -602,28 +630,14 @@ export async function POST(request: Request) {
       sponsorMobile,
       sponsorEmail,
 
-      /* ===================================================
-         GUARDIAN
-      =================================================== */
-
       guardianName,
       guardianRelationship,
       guardianMobile,
       guardianEmail,
 
-      /* ===================================================
-         DOCUMENTS
-         
-         Temporarily NULL.
-      =================================================== */
-
       idDocument,
       kcseCertificate,
       passportPhoto,
-
-      /* ===================================================
-         APPLICATION STATUS
-      =================================================== */
 
       true,
       1500,
@@ -641,8 +655,7 @@ export async function POST(request: Request) {
       values
     );
 
-    const savedApplication =
-      result.rows[0];
+    const savedApplication = result.rows[0];
 
     console.log(
       'Application successfully saved:',
@@ -656,29 +669,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-
         message:
           'Application submitted successfully.',
-
         application: {
-          id:
-            savedApplication.id,
-
+          id: savedApplication.id,
           application_number:
             savedApplication.application_number,
-
-          course:
-            savedApplication.course,
-
-          intake:
-            savedApplication.intake,
-
+          course: savedApplication.course,
+          intake: savedApplication.intake,
           application_fee:
             savedApplication.application_fee,
-
           payment_status:
             savedApplication.payment_status,
-
           application_status:
             savedApplication.application_status,
         },
@@ -695,7 +697,6 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-
         message:
           error instanceof Error
             ? error.message
