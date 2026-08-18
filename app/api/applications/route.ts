@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
-import { mkdir, writeFile, unlink } from 'fs/promises';
-import path from 'path';
 import crypto from 'crypto';
 import pool from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
 /* =========================================================
    CONFIGURATION
 ========================================================= */
-
-const UPLOAD_DIR = path.join(
-  process.cwd(),
-  'public',
-  'uploads',
-  'applications'
-);
 
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
@@ -84,6 +76,10 @@ function getExtensionFromMime(mimeType: string): string {
   }
 }
 
+/* =========================================================
+   SUPABASE FILE UPLOAD
+========================================================= */
+
 async function saveUploadedFile(
   value: FormDataEntryValue | null,
   applicationNumber: string,
@@ -97,11 +93,19 @@ async function saveUploadedFile(
     return null;
   }
 
+  /* =======================================================
+     FILE TYPE VALIDATION
+  ======================================================= */
+
   if (!ALLOWED_FILE_TYPES.includes(value.type)) {
     throw new Error(
       `${documentName} must be a PDF, JPG or PNG file.`
     );
   }
+
+  /* =======================================================
+     FILE SIZE VALIDATION
+  ======================================================= */
 
   if (value.size > MAX_FILE_SIZE) {
     throw new Error(
@@ -109,30 +113,113 @@ async function saveUploadedFile(
     );
   }
 
-  await mkdir(UPLOAD_DIR, {
-    recursive: true,
-  });
+  /* =======================================================
+     FILE EXTENSION
+  ======================================================= */
 
-  const extension =
-    path.extname(value.name).toLowerCase() ||
-    getExtensionFromMime(value.type);
+  const originalExtension =
+  getExtensionFromMime(value.type);
+
+const extension =
+  originalExtension ||
+  `.${getSafeFileName(value.name)
+    .split('.')
+    .pop() || 'bin'}`;
+
+const normalizedExtension =
+  extension.startsWith('.')
+    ? extension
+    : `.${extension}`;
+  /* =======================================================
+     SAFE APPLICATION NUMBER
+  ======================================================= */
 
   const safeApplicationNumber =
     getSafeFileName(applicationNumber);
 
-  const fileName =
-    `${safeApplicationNumber}_${documentName}_${Date.now()}${extension}`;
+  /* =======================================================
+     FILE NAME
+  ======================================================= */
 
-  const filePath = path.join(
-    UPLOAD_DIR,
-    fileName
-  );
+  const fileName =
+    `${safeApplicationNumber}_${documentName}_${Date.now()}${normalizedExtension}`;
+
+  /* =======================================================
+     SUPABASE STORAGE PATH
+     
+     IMPORTANT:
+     
+     The actual file is stored at:
+     
+     application-documents/
+       applications/
+         filename.pdf
+  ======================================================= */
+
+  const storagePath =
+    `applications/${fileName}`;
+
+  /* =======================================================
+     READ FILE
+  ======================================================= */
 
   const buffer = Buffer.from(
     await value.arrayBuffer()
   );
 
-  await writeFile(filePath, buffer);
+  /* =======================================================
+     UPLOAD TO SUPABASE
+  ======================================================= */
+
+  console.log(
+    `Uploading ${documentName} to Supabase:`,
+    storagePath
+  );
+
+  const { error } =
+    await supabaseAdmin.storage
+      .from('application-documents')
+      .upload(
+        storagePath,
+        buffer,
+        {
+          contentType: value.type,
+          upsert: false,
+        }
+      );
+
+  /* =======================================================
+     HANDLE SUPABASE ERROR
+  ======================================================= */
+
+  if (error) {
+    console.error(
+      `SUPABASE ${documentName} UPLOAD ERROR:`,
+      error
+    );
+
+    throw new Error(
+      `Failed to upload ${documentName}: ${error.message}`
+    );
+  }
+
+  console.log(
+    `${documentName} uploaded successfully:`,
+    storagePath
+  );
+
+  /* =======================================================
+     IMPORTANT
+     
+     We intentionally return the OLD URL structure.
+     
+     Neon will continue storing:
+     
+     /uploads/applications/filename.pdf
+     
+     The retrieval route will later map this URL
+     to the Supabase Storage file.
+  ======================================================= */
 
   return `/uploads/applications/${fileName}`;
 }
@@ -142,8 +229,6 @@ async function saveUploadedFile(
 ========================================================= */
 
 export async function POST(request: Request) {
-  let savedFiles: string[] = [];
-
   try {
     /* =====================================================
        READ FORM DATA
@@ -155,16 +240,38 @@ export async function POST(request: Request) {
        PERSONAL
     ===================================================== */
 
-    const surname = clean(formData.get('surname'));
-    const middleName = clean(formData.get('middleName'));
-    const firstName = clean(formData.get('firstName'));
-    const dateOfBirth = clean(formData.get('dateOfBirth'));
-    const gender = clean(formData.get('gender'));
-    const nationality = clean(formData.get('nationality'));
-    const country = clean(formData.get('country'));
+    const surname = clean(
+      formData.get('surname')
+    );
+
+    const middleName = clean(
+      formData.get('middleName')
+    );
+
+    const firstName = clean(
+      formData.get('firstName')
+    );
+
+    const dateOfBirth = clean(
+      formData.get('dateOfBirth')
+    );
+
+    const gender = clean(
+      formData.get('gender')
+    );
+
+    const nationality = clean(
+      formData.get('nationality')
+    );
+
+    const country = clean(
+      formData.get('country')
+    );
+
     const idPassportNumber = clean(
       formData.get('idPassportNumber')
     );
+
     const maritalStatus = clean(
       formData.get('maritalStatus')
     );
@@ -181,10 +288,21 @@ export async function POST(request: Request) {
       formData.get('postalCode')
     );
 
-    const town = clean(formData.get('town'));
-    const county = clean(formData.get('county'));
-    const mobile = clean(formData.get('mobile'));
-    const email = clean(formData.get('email'));
+    const town = clean(
+      formData.get('town')
+    );
+
+    const county = clean(
+      formData.get('county')
+    );
+
+    const mobile = clean(
+      formData.get('mobile')
+    );
+
+    const email = clean(
+      formData.get('email')
+    );
 
     /* =====================================================
        ACADEMIC
@@ -238,8 +356,13 @@ export async function POST(request: Request) {
        COURSE
     ===================================================== */
 
-    const course = clean(formData.get('course'));
-    const intake = clean(formData.get('intake'));
+    const course = clean(
+      formData.get('course')
+    );
+
+    const intake = clean(
+      formData.get('intake')
+    );
 
     /* =====================================================
        SPONSOR
@@ -313,7 +436,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!mobile || !email || !county) {
+    if (
+      !mobile ||
+      !email ||
+      !county
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -339,6 +466,10 @@ export async function POST(request: Request) {
       );
     }
 
+    /* =====================================================
+       COURSE VALIDATION
+    ===================================================== */
+
     if (!ALLOWED_COURSES.includes(course)) {
       return NextResponse.json(
         {
@@ -350,6 +481,9 @@ export async function POST(request: Request) {
       );
     }
 
+    /* =====================================================
+       INTAKE VALIDATION
+    ===================================================== */
 
     if (!ALLOWED_INTAKES.includes(intake)) {
       return NextResponse.json(
@@ -361,6 +495,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    /* =====================================================
+       SPONSOR VALIDATION
+    ===================================================== */
 
     if (!sponsorType) {
       return NextResponse.json(
@@ -387,7 +525,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!guardianName || !guardianMobile) {
+    /* =====================================================
+       GUARDIAN VALIDATION
+    ===================================================== */
+
+    if (
+      !guardianName ||
+      !guardianMobile
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -397,6 +542,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    /* =====================================================
+       DECLARATION VALIDATION
+    ===================================================== */
 
     if (!declaration) {
       return NextResponse.json(
@@ -463,18 +612,17 @@ export async function POST(request: Request) {
       generateApplicationNumber();
 
     /* =====================================================
-       SAVE FILES
+       DOCUMENT UPLOADS
+       
+       These now go to Supabase Storage.
     ===================================================== */
 
-    const idDocument = await saveUploadedFile(
-      formData.get('idDocument'),
-      applicationNumber,
-      'ID'
-    );
-
-    if (idDocument) {
-      savedFiles.push(idDocument);
-    }
+    const idDocument =
+      await saveUploadedFile(
+        formData.get('idDocument'),
+        applicationNumber,
+        'ID'
+      );
 
     const kcseCertificate =
       await saveUploadedFile(
@@ -483,20 +631,12 @@ export async function POST(request: Request) {
         'KCSE'
       );
 
-    if (kcseCertificate) {
-      savedFiles.push(kcseCertificate);
-    }
-
     const passportPhoto =
       await saveUploadedFile(
         formData.get('passportPhoto'),
         applicationNumber,
         'PHOTO'
       );
-
-    if (passportPhoto) {
-      savedFiles.push(passportPhoto);
-    }
 
     /* =====================================================
        DATABASE INSERT
@@ -505,6 +645,7 @@ export async function POST(request: Request) {
     const query = `
       INSERT INTO applications (
         application_number,
+
         surname,
         middle_name,
         first_name,
@@ -576,7 +717,6 @@ export async function POST(request: Request) {
         $39, $40, $41,
 
         $42, $43, $44, $45
-
       )
 
       RETURNING
@@ -591,6 +731,8 @@ export async function POST(request: Request) {
     `;
 
     const values = [
+      /* PERSONAL */
+
       applicationNumber,
       surname,
       middleName,
@@ -602,12 +744,16 @@ export async function POST(request: Request) {
       idPassportNumber,
       maritalStatus,
 
+      /* CONTACT */
+
       postalAddress,
       postalCode,
       town,
       county,
       mobile,
       email,
+
+      /* ACADEMIC */
 
       kcseIndex,
       kcseYear,
@@ -621,8 +767,12 @@ export async function POST(request: Request) {
       previousInstitution,
       highestQualification,
 
+      /* COURSE */
+
       course,
       intake,
+
+      /* SPONSOR */
 
       sponsorType,
       sponsorName,
@@ -630,14 +780,20 @@ export async function POST(request: Request) {
       sponsorMobile,
       sponsorEmail,
 
+      /* GUARDIAN */
+
       guardianName,
       guardianRelationship,
       guardianMobile,
       guardianEmail,
 
+      /* DOCUMENTS */
+
       idDocument,
       kcseCertificate,
       passportPhoto,
+
+      /* APPLICATION STATUS */
 
       true,
       1500,
@@ -655,7 +811,8 @@ export async function POST(request: Request) {
       values
     );
 
-    const savedApplication = result.rows[0];
+    const savedApplication =
+      result.rows[0];
 
     console.log(
       'Application successfully saved:',
@@ -669,18 +826,29 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
+
         message:
           'Application submitted successfully.',
+
         application: {
-          id: savedApplication.id,
+          id:
+            savedApplication.id,
+
           application_number:
             savedApplication.application_number,
-          course: savedApplication.course,
-          intake: savedApplication.intake,
+
+          course:
+            savedApplication.course,
+
+          intake:
+            savedApplication.intake,
+
           application_fee:
             savedApplication.application_fee,
+
           payment_status:
             savedApplication.payment_status,
+
           application_status:
             savedApplication.application_status,
         },
@@ -697,6 +865,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
+
         message:
           error instanceof Error
             ? error.message
