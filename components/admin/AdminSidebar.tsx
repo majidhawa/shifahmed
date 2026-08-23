@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Notebook,
   Settings,
   Users,
   X,
@@ -64,6 +65,11 @@ const navigation = [
     name: 'Reports',
     href: '/admin/dashboard/reports',
     icon: BarChart3,
+  },
+   {
+    name: 'LMS',
+    href: '/admin/dashboard/lms',
+    icon: Notebook,
   },
 ];
 
