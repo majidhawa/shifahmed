@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import PDFDocument from 'pdfkit';
 import pool from '@/lib/db';
@@ -67,22 +66,10 @@ export async function GET(
       );
     }
 
-    console.log(
-      '===================================='
-    );
-
-    console.log(
-      'GENERATING SMTC ADMISSION LETTER'
-    );
-
-    console.log(
-      'Admission ID:',
-      admissionId
-    );
-
-    console.log(
-      '===================================='
-    );
+    console.log('====================================');
+    console.log('GENERATING SMTC ADMISSION LETTER');
+    console.log('Admission ID:', admissionId);
+    console.log('====================================');
 
     /* =====================================================
        GET ADMISSION + APPLICATION
@@ -182,15 +169,6 @@ export async function GET(
        FONT PATHS
     ===================================================== */
 
-    /*
-     * IMPORTANT:
-     *
-     * These files must exist:
-     *
-     * public/fonts/DejaVuSans.ttf
-     * public/fonts/DejaVuSans-Bold.ttf
-     */
-
     const regularFontPath = path.join(
       process.cwd(),
       'public',
@@ -205,20 +183,6 @@ export async function GET(
       'DejaVuSans-Bold.ttf'
     );
 
-    console.log(
-      'Regular font:',
-      regularFontPath
-    );
-
-    console.log(
-      'Bold font:',
-      boldFontPath
-    );
-
-    /* =====================================================
-       VERIFY FONT FILES
-    ===================================================== */
-
     if (!fs.existsSync(regularFontPath)) {
       throw new Error(
         `Regular font not found: ${regularFontPath}`
@@ -231,8 +195,48 @@ export async function GET(
       );
     }
 
+    /* =====================================================
+       IMAGE PATHS
+    ===================================================== */
+
+    const logoPath = path.join(
+      process.cwd(),
+      'public',
+      'images',
+      'logo.jpg'
+    );
+
+    const principalSignaturePath = path.join(
+      process.cwd(),
+      'public',
+      'images',
+      'principal_signature.png'
+    );
+
+    const collegeStampPath = path.join(
+      process.cwd(),
+      'public',
+      'images',
+      'college_stamp.png'
+    );
+
+    const logoExists =
+      fs.existsSync(logoPath);
+
+    const signatureExists =
+      fs.existsSync(principalSignaturePath);
+
+    const stampExists =
+      fs.existsSync(collegeStampPath);
+
+    console.log('Logo:', logoExists);
     console.log(
-      'Custom PDF fonts found successfully.'
+      'Principal signature:',
+      signatureExists
+    );
+    console.log(
+      'College stamp:',
+      stampExists
     );
 
     /* =====================================================
@@ -277,20 +281,6 @@ export async function GET(
     }
 
     /* =====================================================
-       LOGO
-    ===================================================== */
-
-    const logoPath = path.join(
-      process.cwd(),
-      'public',
-      'images',
-      'logo.jpg'
-    );
-
-    const logoExists =
-      fs.existsSync(logoPath);
-
-    /* =====================================================
        SMTC COLORS
     ===================================================== */
 
@@ -298,7 +288,6 @@ export async function GET(
       green: '#006B3F',
       darkGreen: '#004D2C',
       gold: '#D4AF37',
-      lightGold: '#F4E8B2',
       lightGreen: '#EAF5EF',
       white: '#FFFFFF',
       black: '#222222',
@@ -308,19 +297,23 @@ export async function GET(
     };
 
     /* =====================================================
-       CREATE PDF
+       CREATE ONE A4 PAGE
 
        IMPORTANT:
-       We explicitly use the custom font.
-       PDFKit will therefore NOT attempt to load
-       Helvetica.afm.
+       We use fixed coordinates throughout the document.
+       This prevents PDFKit from creating additional blank
+       pages because of doc.y overflow.
     ===================================================== */
 
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 45,
+      margin: 40,
       bufferPages: true,
+
+      // IMPORTANT:
+      // Prevent PDFKit from falling back to Helvetica.afm
       font: regularFontPath,
+
       info: {
         Title:
           `SMTC Admission Letter - ${admission.admission_number}`,
@@ -344,11 +337,6 @@ export async function GET(
       'SMTC-Bold',
       boldFontPath
     );
-
-    /*
-     * VERY IMPORTANT:
-     * Set default active font immediately.
-     */
 
     doc.font('SMTC-Regular');
 
@@ -391,15 +379,14 @@ export async function GET(
     const pageWidth = 595.28;
     const pageHeight = 841.89;
 
-    const left = 45;
-    const right =
-      pageWidth - 45;
+    const left = 42;
+    const right = pageWidth - 42;
 
     const contentWidth =
       right - left;
 
     /* =====================================================
-       PAGE BACKGROUND
+       WHITE BACKGROUND
     ===================================================== */
 
     doc
@@ -412,7 +399,7 @@ export async function GET(
       .fill(COLORS.white);
 
     /* =====================================================
-       TOP GREEN HEADER
+       TOP BRANDING
     ===================================================== */
 
     doc
@@ -420,16 +407,16 @@ export async function GET(
         0,
         0,
         pageWidth,
-        9
+        8
       )
       .fill(COLORS.green);
 
     doc
       .rect(
         0,
-        9,
+        8,
         pageWidth,
-        4
+        3
       )
       .fill(COLORS.gold);
 
@@ -442,182 +429,178 @@ export async function GET(
         doc.image(
           logoPath,
           left,
-          32,
+          25,
           {
-            fit: [85, 85],
-            align: 'center',
-            valign: 'center',
+            fit: [70, 70],
           }
         );
-      } catch (logoError) {
+      } catch (error) {
         console.error(
           'Unable to load SMTC logo:',
-          logoError
+          error
         );
       }
     }
 
     /* =====================================================
-       COLLEGE NAME
+       COLLEGE HEADER
     ===================================================== */
 
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(19)
+      .fontSize(16.5)
       .text(
         'SHIFAH MEDICAL TRAINING COLLEGE',
-        145,
-        40,
+        120,
+        30,
         {
-          width: 405,
+          width: 435,
           align: 'center',
+          lineBreak: false,
         }
       );
-
-    /* =====================================================
-       COLLEGE SLOGAN
-    ===================================================== */
 
     doc
       .fillColor(COLORS.gold)
       .font('SMTC-Bold')
-      .fontSize(9)
+      .fontSize(7.8)
       .text(
         'HEALTH THROUGH INNOVATION AND RESEARCH',
-        145,
-        66,
+        120,
+        52,
         {
-          width: 405,
+          width: 435,
           align: 'center',
-          characterSpacing: 0.5,
+          characterSpacing: 0.4,
+          lineBreak: false,
         }
       );
-
-    /* =====================================================
-       COLLEGE CONTACT
-    ===================================================== */
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(8)
+      .fontSize(7.2)
       .text(
         'Ambwere Plaza, 2nd Floor, Kitale, Kenya',
-        145,
-        84,
+        120,
+        68,
         {
-          width: 405,
+          width: 435,
           align: 'center',
+          lineBreak: false,
         }
       );
 
-    doc
-      .text(
-        'Tel: +254 142 068 933  |  shifahmedicalcollege.co.ke',
-        145,
-        97,
-        {
-          width: 405,
-          align: 'center',
-        }
-      );
+    doc.text(
+      'Tel: +254 142 068 933  |  shifahmedicalcollege.co.ke',
+      120,
+      80,
+      {
+        width: 435,
+        align: 'center',
+        lineBreak: false,
+      }
+    );
 
     /* =====================================================
-       GOLD DIVIDER
+       DIVIDER
     ===================================================== */
 
     doc
-      .moveTo(
-        left,
-        125
-      )
-      .lineTo(
-        right,
-        125
-      )
-      .lineWidth(2)
+      .moveTo(left, 103)
+      .lineTo(right, 103)
+      .lineWidth(1.5)
       .strokeColor(COLORS.gold)
       .stroke();
 
     /* =====================================================
-       ADMISSION LETTER TITLE
+       TITLE
     ===================================================== */
 
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(18)
+      .fontSize(15.5)
       .text(
         'ADMISSION LETTER',
         left,
-        148,
+        116,
         {
           width: contentWidth,
           align: 'center',
+          lineBreak: false,
         }
       );
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(8.5)
+      .fontSize(7.2)
       .text(
         'OFFICIAL OFFER OF ADMISSION',
         left,
-        173,
+        138,
         {
           width: contentWidth,
           align: 'center',
+          lineBreak: false,
         }
       );
 
     /* =====================================================
-       ADMISSION NUMBER BADGE
+       ADMISSION NUMBER BOX
     ===================================================== */
 
     doc
       .roundedRect(
         left,
-        198,
+        157,
         contentWidth,
-        48,
-        6
+        43,
+        5
       )
       .fill(COLORS.lightGreen);
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(8.5)
+      .fontSize(7.2)
       .text(
         'ADMISSION NUMBER',
-        left + 15,
-        211
+        left + 14,
+        167,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(13)
+      .fontSize(10.5)
       .text(
         admission.admission_number ||
           'N/A',
-        left + 15,
-        225
+        left + 14,
+        181,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(8)
+      .fontSize(7.2)
       .text(
         `Date: ${admissionDateText}`,
-        left + 330,
-        220,
+        left + 315,
+        176,
         {
-          width: 135,
+          width: 145,
           align: 'right',
+          lineBreak: false,
         }
       );
 
@@ -625,173 +608,192 @@ export async function GET(
        STUDENT ADDRESS
     ===================================================== */
 
-    let y = 275;
-
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Bold')
-      .fontSize(10.5)
+      .fontSize(8.8)
       .text(
         applicantName || 'N/A',
         left,
-        y
+        216,
+        {
+          lineBreak: false,
+        }
       );
 
-    y += 17;
+    doc
+      .fillColor(COLORS.gray)
+      .font('SMTC-Regular')
+      .fontSize(7.3);
 
     if (admission.postal_address) {
-      doc
-        .fillColor(COLORS.gray)
-        .font('SMTC-Regular')
-        .fontSize(8.5)
-        .text(
-          admission.postal_address,
-          left,
-          y
-        );
-
-      y += 14;
+      doc.text(
+        admission.postal_address,
+        left,
+        230,
+        {
+          lineBreak: false,
+        }
+      );
     }
 
     if (admission.postal_code) {
       doc.text(
         admission.postal_code,
         left,
-        y
+        241,
+        {
+          lineBreak: false,
+        }
       );
-
-      y += 14;
     }
 
     if (admission.town) {
       doc.text(
         admission.town,
         left,
-        y
+        252,
+        {
+          lineBreak: false,
+        }
       );
-
-      y += 14;
     }
 
     /* =====================================================
        SUBJECT
     ===================================================== */
 
-    y += 15;
-
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Bold')
-      .fontSize(10.5)
+      .fontSize(8.8)
       .text(
         'RE: OFFER OF ADMISSION',
         left,
-        y
+        269,
+        {
+          lineBreak: false,
+        }
       );
 
     /* =====================================================
        GREETING
     ===================================================== */
 
-    y += 30;
-
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Regular')
-      .fontSize(9.8)
+      .fontSize(8.3)
       .text(
         `Dear ${firstName},`,
         left,
-        y
+        291,
+        {
+          lineBreak: false,
+        }
       );
 
     /* =====================================================
        INTRODUCTION
     ===================================================== */
 
-    y += 26;
-
-    doc.text(
-      `We are pleased to inform you that you have been offered admission to Shifah Medical Training College to pursue the ${admission.course || 'selected programme'} programme.`,
-      left,
-      y,
-      {
-        width: contentWidth,
-        align: 'justify',
-        lineGap: 4,
-      }
-    );
-
-    y = doc.y + 12;
+    doc
+      .font('SMTC-Regular')
+      .fontSize(8.3)
+      .text(
+        `We are pleased to inform you that you have been offered admission to Shifah Medical Training College to pursue the ${admission.course || 'selected programme'} programme.`,
+        left,
+        310,
+        {
+          width: contentWidth,
+          align: 'justify',
+          lineGap: 1.5,
+        }
+      );
 
     /* =====================================================
        ADMISSION DETAILS BOX
     ===================================================== */
 
+    const detailsY = 344;
+    const detailsHeight = 89;
+
     doc
       .roundedRect(
         left,
-        y,
+        detailsY,
         contentWidth,
-        108,
-        6
+        detailsHeight,
+        5
       )
       .fill(COLORS.lightGray);
 
     doc
       .roundedRect(
         left,
-        y,
-        6,
-        108,
-        3
+        detailsY,
+        5,
+        detailsHeight,
+        2
       )
       .fill(COLORS.green);
 
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(10)
+      .fontSize(8.2)
       .text(
         'ADMISSION DETAILS',
-        left + 20,
-        y + 13
+        left + 17,
+        detailsY + 10,
+        {
+          lineBreak: false,
+        }
       );
 
-    const detailStartY =
-      y + 37;
+    const detailX = left + 155;
 
     /* Admission number */
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(8.8)
+      .fontSize(7.3)
       .text(
         'Admission Number',
-        left + 20,
-        detailStartY
+        left + 17,
+        detailsY + 29,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Bold')
+      .fontSize(7.6)
       .text(
         admission.admission_number ||
           'N/A',
-        left + 170,
-        detailStartY
+        detailX,
+        detailsY + 29,
+        {
+          lineBreak: false,
+        }
       );
 
-    /* Course */
+    /* Programme */
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
       .text(
         'Programme',
-        left + 20,
-        detailStartY + 21
+        left + 17,
+        detailsY + 47,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
@@ -800,10 +802,11 @@ export async function GET(
       .text(
         admission.course ||
           'N/A',
-        left + 170,
-        detailStartY + 21,
+        detailX,
+        detailsY + 47,
         {
-          width: 330,
+          width: 340,
+          lineBreak: false,
         }
       );
 
@@ -814,8 +817,11 @@ export async function GET(
       .font('SMTC-Regular')
       .text(
         'Intake',
-        left + 20,
-        detailStartY + 42
+        left + 17,
+        detailsY + 65,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
@@ -824,131 +830,99 @@ export async function GET(
       .text(
         admission.intake ||
           'N/A',
-        left + 170,
-        detailStartY + 42,
+        detailX,
+        detailsY + 65,
         {
-          width: 330,
+          width: 340,
+          lineBreak: false,
         }
       );
 
-    /* Admission date */
-
-    doc
-      .fillColor(COLORS.gray)
-      .font('SMTC-Regular')
-      .text(
-        'Admission Date',
-        left + 20,
-        detailStartY + 63
-      );
-
-    doc
-      .fillColor(COLORS.black)
-      .font('SMTC-Bold')
-      .text(
-        admissionDateText,
-        left + 170,
-        detailStartY + 63
-      );
-
-    y += 132;
-
     /* =====================================================
-       SECOND PARAGRAPH
+       MAIN BODY PARAGRAPHS
     ===================================================== */
 
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Regular')
-      .fontSize(9.8)
+      .fontSize(8.15)
       .text(
         `Your admission is for the ${admission.intake || 'selected intake'}. Your official admission number is ${admission.admission_number || 'N/A'}. Please quote this admission number in all future correspondence with the College.`,
         left,
-        y,
+        449,
         {
           width: contentWidth,
           align: 'justify',
-          lineGap: 4,
+          lineGap: 1.5,
         }
       );
-
-    y = doc.y + 12;
-
-    /* =====================================================
-       REPORTING INFORMATION
-    ===================================================== */
 
     doc.text(
       'You are expected to report to the College on the official reporting date communicated by the Admissions Office. Upon reporting, you will be required to complete the necessary registration and admission procedures.',
       left,
-      y,
+      490,
       {
         width: contentWidth,
         align: 'justify',
-        lineGap: 4,
+        lineGap: 1.5,
       }
     );
-
-    y = doc.y + 12;
-
-    /* =====================================================
-       DOCUMENT REQUIREMENTS
-    ===================================================== */
 
     doc.text(
       'Please bring the relevant original academic certificates, identification documents and other required supporting documents together with copies as may be required during registration.',
       left,
-      y,
+      530,
       {
         width: contentWidth,
         align: 'justify',
-        lineGap: 4,
+        lineGap: 1.5,
       }
     );
 
-    y = doc.y + 12;
-
     /* =====================================================
-       VERIFICATION NOTICE
+       IMPORTANT NOTICE
     ===================================================== */
+
+    const noticeY = 568;
+    const noticeHeight = 51;
 
     doc
       .roundedRect(
         left,
-        y,
+        noticeY,
         contentWidth,
-        60,
-        6
+        noticeHeight,
+        5
       )
       .fill(COLORS.lightGreen);
 
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(9)
+      .fontSize(7.8)
       .text(
         'IMPORTANT NOTICE',
-        left + 15,
-        y + 12
+        left + 13,
+        noticeY + 9,
+        {
+          lineBreak: false,
+        }
       );
 
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Regular')
-      .fontSize(8)
+      .fontSize(7)
       .text(
         'This offer of admission is subject to verification of the information and documents provided in your application and compliance with the College admission requirements.',
-        left + 15,
-        y + 28,
+        left + 13,
+        noticeY + 23,
         {
-          width:
-            contentWidth - 30,
+          width: contentWidth - 26,
           align: 'justify',
-          lineGap: 2,
+          lineGap: 1,
         }
       );
-
-    y += 78;
 
     /* =====================================================
        CLOSING
@@ -957,142 +931,209 @@ export async function GET(
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Regular')
-      .fontSize(9.8)
+      .fontSize(8.2)
       .text(
         'We congratulate you on your admission and look forward to welcoming you to Shifah Medical Training College.',
         left,
-        y,
+        632,
         {
           width: contentWidth,
           align: 'justify',
-          lineGap: 4,
+          lineGap: 1.5,
         }
       );
 
-    y = doc.y + 24;
-
     /* =====================================================
-       SIGNATURE
+       SIGN-OFF
     ===================================================== */
 
     doc
       .fillColor(COLORS.black)
       .font('SMTC-Regular')
-      .fontSize(9.5)
+      .fontSize(8)
       .text(
         'Yours faithfully,',
         left,
-        y
-      );
-
-    y += 35;
-
-    doc
-      .moveTo(
-        left,
-        y
-      )
-      .lineTo(
-        left + 160,
-        y
-      )
-      .lineWidth(0.8)
-      .strokeColor(COLORS.gray)
-      .stroke();
-
-    y += 7;
-
-    doc
-      .fillColor(COLORS.green)
-      .font('SMTC-Bold')
-      .fontSize(9.5)
-      .text(
-        'ADMISSIONS OFFICE',
-        left,
-        y
-      );
-
-    y += 14;
-
-    doc
-      .fillColor(COLORS.gray)
-      .font('SMTC-Regular')
-      .fontSize(8)
-      .text(
-        'Shifah Medical Training College',
-        left,
-        y
+        665,
+        {
+          lineBreak: false,
+        }
       );
 
     /* =====================================================
-       FOOTER LINE
+       PRINCIPAL SIGNATURE
+    ===================================================== */
+
+    /*
+     * Professional signature size:
+     *
+     * The signature is kept proportional and slightly
+     * smaller than the stamp so it looks like a genuine
+     * handwritten signature rather than a large graphic.
+     */
+
+    const signatureX = left;
+    const signatureY = 680;
+
+    if (signatureExists) {
+      try {
+        doc.image(
+          principalSignaturePath,
+          signatureX,
+          signatureY,
+          {
+            fit: [170, 78],
+          }
+        );
+      } catch (signatureError) {
+        console.error(
+          'Unable to load principal signature:',
+          signatureError
+        );
+      }
+    }
+
+    /* =====================================================
+       COLLEGE STAMP
+    ===================================================== */
+
+    /*
+     * Professional official stamp size.
+     *
+     * Positioned close to the signature without
+     * overpowering the document.
+     */
+
+    const stampX = left + 285;
+    const stampY = 674;
+
+    if (stampExists) {
+      try {
+        doc.image(
+          collegeStampPath,
+          stampX,
+          stampY,
+          {
+            fit: [185, 185],
+          }
+        );
+      } catch (stampError) {
+        console.error(
+          'Unable to load college stamp:',
+          stampError
+        );
+      }
+    }
+
+    /* =====================================================
+       SIGNATURE LINE
     ===================================================== */
 
     doc
       .moveTo(
         left,
-        pageHeight - 78
+        721
+      )
+      .lineTo(
+        left + 150,
+        721
+      )
+      .lineWidth(0.7)
+      .strokeColor(COLORS.gray)
+      .stroke();
+
+    /* =====================================================
+       PRINCIPAL TITLE
+    ===================================================== */
+
+    doc
+      .fillColor(COLORS.green)
+      .font('SMTC-Bold')
+      .fontSize(8)
+      .text(
+        'PRINCIPAL',
+        left,
+        726,
+        {
+          lineBreak: false,
+        }
+      );
+
+    doc
+      .fillColor(COLORS.gray)
+      .font('SMTC-Regular')
+      .fontSize(7)
+      .text(
+        'Shifah Medical Training College',
+        left,
+        739,
+        {
+          lineBreak: false,
+        }
+      );
+
+    /* =====================================================
+       FOOTER
+    ===================================================== */
+
+    const footerLineY = 766;
+
+    doc
+      .moveTo(
+        left,
+        footerLineY
       )
       .lineTo(
         right,
-        pageHeight - 78
+        footerLineY
       )
       .lineWidth(1)
       .strokeColor(COLORS.gold)
       .stroke();
 
-    /* =====================================================
-       FOOTER COLLEGE NAME
-    ===================================================== */
-
     doc
       .fillColor(COLORS.green)
       .font('SMTC-Bold')
-      .fontSize(8.5)
+      .fontSize(7.5)
       .text(
         'SHIFAH MEDICAL TRAINING COLLEGE',
         left,
-        pageHeight - 63,
+        footerLineY + 10,
         {
           width: contentWidth,
           align: 'center',
+          lineBreak: false,
         }
       );
-
-    /* =====================================================
-       FOOTER SLOGAN
-    ===================================================== */
 
     doc
       .fillColor(COLORS.gray)
       .font('SMTC-Regular')
-      .fontSize(7.5)
+      .fontSize(6.8)
       .text(
         'Health through innovation and research',
         left,
-        pageHeight - 48,
+        footerLineY + 23,
         {
           width: contentWidth,
           align: 'center',
+          lineBreak: false,
         }
       );
-
-    /* =====================================================
-       OFFICIAL DOCUMENT LABEL
-    ===================================================== */
 
     doc
       .fillColor(COLORS.gold)
       .font('SMTC-Bold')
-      .fontSize(7)
+      .fontSize(6.2)
       .text(
         'OFFICIAL ADMISSION DOCUMENT',
         left,
-        pageHeight - 31,
+        footerLineY + 35,
         {
           width: contentWidth,
           align: 'center',
-          characterSpacing: 0.5,
+          characterSpacing: 0.4,
+          lineBreak: false,
         }
       );
 
@@ -1146,9 +1187,7 @@ export async function GET(
             `attachment; filename="SMTC-Admission-Letter-${safeAdmissionNumber}.pdf"`,
 
           'Content-Length':
-            String(
-              pdfBuffer.length
-            ),
+            String(pdfBuffer.length),
 
           'Cache-Control':
             'no-store, no-cache, must-revalidate',
@@ -1163,10 +1202,6 @@ export async function GET(
     );
 
   } catch (error) {
-    /* =====================================================
-       ERROR HANDLING
-    ===================================================== */
-
     console.error(
       '===================================='
     );
@@ -1199,4 +1234,3 @@ export async function GET(
     );
   }
 }
-
