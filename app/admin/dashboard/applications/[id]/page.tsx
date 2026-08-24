@@ -462,7 +462,7 @@ export default function ApplicationDetailsPage() {
 
     if (
       application.payment_status !==
-      'Paid'
+      'paid'
     ) {
       setError(
         'The application fee must be paid before creating an admission.'
@@ -801,7 +801,7 @@ export default function ApplicationDetailsPage() {
                       application.application_status !==
                         'Approved' ||
                       application.payment_status !==
-                        'Paid'
+                        'paid'
                     }
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -828,7 +828,7 @@ export default function ApplicationDetailsPage() {
                 {application.application_status ===
                   'Approved' &&
                   application.payment_status !==
-                    'Paid' && (
+                    'paid' && (
                     <p className="mt-3 text-xs text-red-500">
                       Application fee payment must be
                       confirmed first.

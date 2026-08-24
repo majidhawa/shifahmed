@@ -184,7 +184,7 @@ export async function POST(request: Request) {
 
     if (
       application.payment_status !==
-      'Paid'
+      'paid'
     ) {
       return NextResponse.json(
         {
