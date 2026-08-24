@@ -4,9 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 import pool from '@/lib/db';
-import {
-  getStudentSession,
-} from '@/lib/student-auth';
+import { getStudentSession } from '@/lib/student-auth';
 
 import {
   LayoutDashboard,
@@ -35,7 +33,6 @@ import {
 ========================================================= */
 
 export default async function StudentAdmissionPage() {
-
   /* =======================================================
      CHECK SESSION
   ======================================================= */
@@ -48,10 +45,6 @@ export default async function StudentAdmissionPage() {
 
   /* =======================================================
      GET STUDENT APPLICATION
-
-     IMPORTANT:
-     The application ID AND application number both come
-     from the authenticated student session.
   ======================================================= */
 
   const result = await pool.query(
@@ -99,6 +92,15 @@ export default async function StudentAdmissionPage() {
   }
 
   const student = result.rows[0];
+
+  /* =======================================================
+     APPLICATION NUMBER
+  ======================================================= */
+
+  const applicationNumber =
+    student.application_number
+      ? String(student.application_number).trim()
+      : '';
 
   /* =======================================================
      FULL NAME
@@ -192,6 +194,17 @@ export default async function StudentAdmissionPage() {
   }
 
   /* =======================================================
+     DOWNLOAD URL
+  ======================================================= */
+
+  const admissionDownloadUrl =
+    applicationNumber
+      ? `/api/student/admission/${encodeURIComponent(
+          applicationNumber
+        )}/download`
+      : null;
+
+  /* =======================================================
      UI
   ======================================================= */
 
@@ -213,7 +226,7 @@ export default async function StudentAdmissionPage() {
       >
 
         {/* =================================================
-            BRAND / OFFICIAL LOGO
+            BRAND
         ================================================= */}
 
         <div
@@ -228,8 +241,6 @@ export default async function StudentAdmissionPage() {
             href="/student/dashboard"
             className="flex items-center gap-3"
           >
-
-            {/* OFFICIAL COLLEGE LOGO */}
 
             <div
               className="
@@ -295,7 +306,7 @@ export default async function StudentAdmissionPage() {
             <div className="min-w-0">
 
               <p className="truncate text-sm font-semibold">
-                {fullName}
+                {fullName || 'Student'}
               </p>
 
               <p className="truncate text-xs text-white/50">
@@ -495,7 +506,7 @@ export default async function StudentAdmissionPage() {
                 </p>
 
                 <p className="text-xs text-gray-500">
-                  {student.application_number}
+                  {applicationNumber || '—'}
                 </p>
 
               </div>
@@ -618,6 +629,8 @@ export default async function StudentAdmissionPage() {
                   "
                 >
 
+                  {/* STATUS INFORMATION */}
+
                   <div className="flex items-start gap-4">
 
                     <div
@@ -708,33 +721,33 @@ export default async function StudentAdmissionPage() {
 
                   </div>
 
-                  {isApproved && (
-                    <a
-                      href={`/api/student/admission/${encodeURIComponent(
-                        student.application_number
-                      )}/download`}
-                      className="
-                        inline-flex
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        bg-[#0f4f3f]
-                        px-5 py-3
-                        text-sm font-semibold
-                        text-white
-                        shadow-sm
-                        transition
-                        hover:bg-[#0c3f32]
-                      "
-                    >
-
-                      <Download size={17} />
-
-                      Download Admission Letter
-
-                    </a>
-                  )}
+                  {/* =================================================
+                      DOWNLOAD ADMISSION LETTER
+                  ================================================= */}
+{isApproved && student.application_number && (
+  <a
+    href={`/api/student/admission/${encodeURIComponent(
+      String(student.application_number)
+    )}/download`}
+    className="
+      inline-flex
+      items-center
+      justify-center
+      gap-2
+      rounded-xl
+      bg-[#0f4f3f]
+      px-5 py-3
+      text-sm font-semibold
+      text-white
+      shadow-sm
+      transition
+      hover:bg-[#0c3f32]
+    "
+  >
+    <Download size={17} />
+    Download Admission Letter
+  </a>
+)}
 
                 </div>
 
@@ -859,7 +872,7 @@ export default async function StudentAdmissionPage() {
 
                     <AdmissionInfo
                       label="Application Number"
-                      value={student.application_number}
+                      value={applicationNumber}
                     />
 
                     <AdmissionInfo
@@ -925,7 +938,7 @@ export default async function StudentAdmissionPage() {
 
                     <AdmissionInfo
                       label="Application Number"
-                      value={student.application_number}
+                      value={applicationNumber}
                     />
 
                   </div>
@@ -1337,7 +1350,7 @@ export default async function StudentAdmissionPage() {
 
                     <AdmissionInfo
                       label="Application Number"
-                      value={student.application_number}
+                      value={applicationNumber}
                     />
 
                     <AdmissionInfo
@@ -1430,7 +1443,7 @@ export default async function StudentAdmissionPage() {
 
                 <AdmissionInfo
                   label="Application Number"
-                  value={student.application_number}
+                  value={applicationNumber}
                 />
 
                 <AdmissionInfo
@@ -1584,11 +1597,13 @@ function SidebarItem({
         }
       `}
     >
+
       {icon}
 
       <span>
         {label}
       </span>
+
     </Link>
   );
 }
@@ -1756,4 +1771,3 @@ function StepItem({
     </div>
   );
 }
-
