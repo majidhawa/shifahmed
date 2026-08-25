@@ -11,7 +11,6 @@ export const runtime = 'nodejs';
 ========================================================= */
 
 type UserRole =
-  | 'admin'
   | 'lecturer'
   | 'parent';
 
@@ -31,7 +30,6 @@ function normalizeRole(
     .toLowerCase();
 
   if (
-    value === 'admin' ||
     value === 'lecturer' ||
     value === 'parent'
   ) {
@@ -119,7 +117,8 @@ export async function GET(
         return NextResponse.json(
           {
             success: false,
-            message: 'Invalid user role.',
+            message:
+              'Invalid role. Use lecturer or parent.',
           },
           { status: 400 }
         );
@@ -250,10 +249,6 @@ export async function GET(
           COUNT(*)::int AS total,
 
           COUNT(*) FILTER (
-            WHERE role = 'admin'
-          )::int AS admins,
-
-          COUNT(*) FILTER (
             WHERE role = 'lecturer'
           )::int AS lecturers,
 
@@ -270,6 +265,11 @@ export async function GET(
           )::int AS inactive
 
         FROM users
+
+        WHERE role IN (
+          'lecturer',
+          'parent'
+        )
       `);
 
     /* =====================================================
@@ -284,7 +284,6 @@ export async function GET(
       statistics:
         statisticsResult.rows[0] || {
           total: 0,
-          admins: 0,
           lecturers: 0,
           parents: 0,
           active: 0,
@@ -355,7 +354,7 @@ export async function POST(
     }
 
     /* =====================================================
-       GET VALUES
+       VALUES
     ===================================================== */
 
     const name =
@@ -432,7 +431,7 @@ export async function POST(
         {
           success: false,
           message:
-            'Role must be admin, lecturer, or parent.',
+            'Role must be lecturer or parent.',
         },
         { status: 400 }
       );
@@ -450,10 +449,10 @@ export async function POST(
     }
 
     /* =====================================================
-       CHECK EXISTING EMAIL
+       CHECK EMAIL IN USERS
     ===================================================== */
 
-    const existing =
+    const existingUser =
       await pool.query(
         `
           SELECT id
@@ -464,12 +463,43 @@ export async function POST(
         [email]
       );
 
-    if (existing.rows.length > 0) {
+    if (
+      existingUser.rows.length > 0
+    ) {
       return NextResponse.json(
         {
           success: false,
           message:
             'A user with this email address already exists.',
+        },
+        { status: 409 }
+      );
+    }
+
+    /* =====================================================
+       CHECK EMAIL IN ADMIN_USERS
+       Prevent same email being used for both systems.
+    ===================================================== */
+
+    const existingAdmin =
+      await pool.query(
+        `
+          SELECT id
+          FROM admin_users
+          WHERE LOWER(email) = LOWER($1)
+          LIMIT 1
+        `,
+        [email]
+      );
+
+    if (
+      existingAdmin.rows.length > 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'This email address is already registered as an administrator.',
         },
         { status: 409 }
       );
@@ -486,7 +516,7 @@ export async function POST(
       );
 
     /* =====================================================
-       CONVERT STATUS TO BOOLEAN
+       ACTIVE STATUS
     ===================================================== */
 
     const active =
@@ -545,7 +575,7 @@ export async function POST(
     ===================================================== */
 
     console.log(
-      `Admin ${admin.email} created user #${user.id} (${user.email}) with role ${user.role}`
+      `Admin ${admin.email} created LMS user #${user.id} (${user.email}) with role ${user.role}`
     );
 
     /* =====================================================
@@ -563,15 +593,13 @@ export async function POST(
     );
   } catch (error: any) {
     console.error(
-      'CREATE ADMIN USER ERROR:',
+      'CREATE LMS USER ERROR:',
       error
     );
 
-    /* =====================================================
-       DUPLICATE EMAIL
-    ===================================================== */
-
-    if (error?.code === '23505') {
+    if (
+      error?.code === '23505'
+    ) {
       return NextResponse.json(
         {
           success: false,

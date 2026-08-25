@@ -17,7 +17,6 @@ type RouteContext = {
 };
 
 type UserRole =
-  | 'admin'
   | 'lecturer'
   | 'parent';
 
@@ -37,7 +36,6 @@ function normalizeRole(
     .toLowerCase();
 
   if (
-    value === 'admin' ||
     value === 'lecturer' ||
     value === 'parent'
   ) {
@@ -103,8 +101,7 @@ export async function GET(
     const { id: idParam } =
       await context.params;
 
-    const id =
-      Number(idParam);
+    const id = Number(idParam);
 
     if (
       !Number.isInteger(id) ||
@@ -139,6 +136,11 @@ export async function GET(
           FROM users
 
           WHERE id = $1
+
+          AND role IN (
+            'lecturer',
+            'parent'
+          )
 
           LIMIT 1
         `,
@@ -221,8 +223,7 @@ export async function PATCH(
     const { id: idParam } =
       await context.params;
 
-    const id =
-      Number(idParam);
+    const id = Number(idParam);
 
     if (
       !Number.isInteger(id) ||
@@ -249,8 +250,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message:
-            'Invalid request body.',
+          message: 'Invalid request body.',
         },
         { status: 400 }
       );
@@ -273,6 +273,11 @@ export async function PATCH(
           FROM users
 
           WHERE id = $1
+
+          AND role IN (
+            'lecturer',
+            'parent'
+          )
 
           LIMIT 1
         `,
@@ -302,8 +307,7 @@ export async function PATCH(
 
     const email =
       body?.email !== undefined
-        ? cleanString(body.email)
-            .toLowerCase()
+        ? cleanString(body.email).toLowerCase()
         : undefined;
 
     const phone =
@@ -337,8 +341,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message:
-            'Name cannot be empty.',
+          message: 'Name cannot be empty.',
         },
         { status: 400 }
       );
@@ -351,8 +354,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message:
-            'Email cannot be empty.',
+          message: 'Email cannot be empty.',
         },
         { status: 400 }
       );
@@ -381,7 +383,7 @@ export async function PATCH(
         {
           success: false,
           message:
-            'Invalid role. Use admin, lecturer, or parent.',
+            'Invalid role. Use lecturer or parent.',
         },
         { status: 400 }
       );
@@ -402,7 +404,7 @@ export async function PATCH(
     }
 
     /* =====================================================
-       CHECK DUPLICATE EMAIL
+       CHECK DUPLICATE EMAIL IN USERS
     ===================================================== */
 
     if (email) {
@@ -410,9 +412,11 @@ export async function PATCH(
         await pool.query(
           `
             SELECT id
+
             FROM users
 
             WHERE LOWER(email) = LOWER($1)
+
             AND id <> $2
 
             LIMIT 1
@@ -428,6 +432,37 @@ export async function PATCH(
             success: false,
             message:
               'Another user already uses this email address.',
+          },
+          { status: 409 }
+        );
+      }
+
+      /* ===================================================
+         CHECK EMAIL IN ADMIN_USERS
+      =================================================== */
+
+      const adminDuplicate =
+        await pool.query(
+          `
+            SELECT id
+
+            FROM admin_users
+
+            WHERE LOWER(email) = LOWER($1)
+
+            LIMIT 1
+          `,
+          [email]
+        );
+
+      if (
+        adminDuplicate.rows.length > 0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'This email address is already registered as an administrator.',
           },
           { status: 409 }
         );
@@ -510,7 +545,7 @@ export async function PATCH(
     }
 
     /* =====================================================
-       STATUS → BOOLEAN
+       STATUS
     ===================================================== */
 
     if (
@@ -545,9 +580,7 @@ export async function PATCH(
         `password_hash = $${parameterIndex}`
       );
 
-      values.push(
-        passwordHash
-      );
+      values.push(passwordHash);
 
       parameterIndex++;
     }
@@ -580,7 +613,7 @@ export async function PATCH(
     }
 
     /* =====================================================
-       ADD ID
+       ADD USER ID
     ===================================================== */
 
     values.push(id);
@@ -598,6 +631,11 @@ export async function PATCH(
             ${fields.join(', ')}
 
           WHERE id = $${parameterIndex}
+
+          AND role IN (
+            'lecturer',
+            'parent'
+          )
 
           RETURNING
             id,
@@ -651,10 +689,6 @@ export async function PATCH(
       'UPDATE ADMIN USER ERROR:',
       error
     );
-
-    /* =====================================================
-       DUPLICATE EMAIL
-    ===================================================== */
 
     if (
       error?.code === '23505'
@@ -715,8 +749,7 @@ export async function DELETE(
     const { id: idParam } =
       await context.params;
 
-    const id =
-      Number(idParam);
+    const id = Number(idParam);
 
     if (
       !Number.isInteger(id) ||
@@ -748,6 +781,11 @@ export async function DELETE(
 
           WHERE id = $1
 
+          AND role IN (
+            'lecturer',
+            'parent'
+          )
+
           LIMIT 1
         `,
         [id]
@@ -769,35 +807,19 @@ export async function DELETE(
       existingResult.rows[0];
 
     /* =====================================================
-       PROTECT CURRENT ADMIN
-    ===================================================== */
-
-    if (
-      user.email &&
-      admin.email &&
-      String(user.email)
-        .toLowerCase() ===
-        String(admin.email)
-          .toLowerCase()
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'You cannot delete the administrator account currently being used.',
-        },
-        { status: 400 }
-      );
-    }
-
-    /* =====================================================
        DELETE USER
     ===================================================== */
 
     await pool.query(
       `
         DELETE FROM users
+
         WHERE id = $1
+
+        AND role IN (
+          'lecturer',
+          'parent'
+        )
       `,
       [id]
     );

@@ -17,6 +17,10 @@ import {
   X,
 } from 'lucide-react';
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 type UserRole =
   | 'admin'
   | 'lecturer'
@@ -30,6 +34,7 @@ type User = {
   role: UserRole;
   active: boolean;
   created_at: string;
+  updated_at?: string;
 };
 
 type FormData = {
@@ -48,6 +53,10 @@ const initialForm: FormData = {
   role: 'lecturer',
 };
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function ManageUsersPage() {
   const [users, setUsers] =
     useState<User[]>([]);
@@ -57,6 +66,9 @@ export default function ManageUsersPage() {
 
   const [saving, setSaving] =
     useState(false);
+
+  const [deletingId, setDeletingId] =
+    useState<number | null>(null);
 
   const [error, setError] =
     useState('');
@@ -82,13 +94,14 @@ export default function ManageUsersPage() {
       setLoading(true);
       setError('');
 
-      const response = await fetch(
-        '/api/admin/users',
-        {
-          method: 'GET',
-          cache: 'no-store',
-        }
-      );
+      const response =
+        await fetch(
+          '/api/admin/users',
+          {
+            method: 'GET',
+            cache: 'no-store',
+          }
+        );
 
       const data =
         await response.json();
@@ -103,7 +116,11 @@ export default function ManageUsersPage() {
         );
       }
 
-      setUsers(data.users || []);
+      setUsers(
+        Array.isArray(data.users)
+          ? data.users
+          : []
+      );
     } catch (error) {
       console.error(
         'LOAD USERS ERROR:',
@@ -120,6 +137,10 @@ export default function ManageUsersPage() {
     }
   }
 
+  /* =====================================================
+     INITIAL LOAD
+  ===================================================== */
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -130,7 +151,10 @@ export default function ManageUsersPage() {
 
   function openAddModal() {
     setEditingUser(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
+
     setError('');
     setSuccess('');
     setShowModal(true);
@@ -140,7 +164,9 @@ export default function ManageUsersPage() {
      OPEN EDIT MODAL
   ===================================================== */
 
-  function openEditModal(user: User) {
+  function openEditModal(
+    user: User
+  ) {
     setEditingUser(user);
 
     setForm({
@@ -165,7 +191,13 @@ export default function ManageUsersPage() {
 
     setShowModal(false);
     setEditingUser(null);
-    setForm(initialForm);
+
+    setForm({
+      ...initialForm,
+    });
+
+    setError('');
+    setSuccess('');
   }
 
   /* =====================================================
@@ -187,7 +219,7 @@ export default function ManageUsersPage() {
   ===================================================== */
 
   async function saveUser(
-    event: React.FormEvent
+    event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -196,25 +228,96 @@ export default function ManageUsersPage() {
     setSuccess('');
 
     try {
+      /* =================================================
+         VALIDATION
+      ================================================= */
+
+      if (!form.name.trim()) {
+        throw new Error(
+          'Full name is required.'
+        );
+      }
+
+      if (!form.email.trim()) {
+        throw new Error(
+          'Email address is required.'
+        );
+      }
+
+      if (
+        !editingUser &&
+        !form.password
+      ) {
+        throw new Error(
+          'Password is required.'
+        );
+      }
+
+      if (
+        form.password &&
+        form.password.length < 8
+      ) {
+        throw new Error(
+          'Password must be at least 8 characters.'
+        );
+      }
+
+      /* =================================================
+         URL
+      ================================================= */
+
       const url = editingUser
         ? `/api/admin/users/${editingUser.id}`
         : '/api/admin/users';
+
+      /* =================================================
+         METHOD
+      ================================================= */
 
       const method = editingUser
         ? 'PATCH'
         : 'POST';
 
-      const response = await fetch(
-        url,
-        {
-          method,
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify(form),
-        }
-      );
+      /* =================================================
+         REQUEST BODY
+      ================================================= */
+
+      const body: any = {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        role: form.role,
+      };
+
+      /*
+       * Only send password when:
+       * - creating a new user, or
+       * - editing and entering a new password
+       */
+      if (
+        !editingUser ||
+        form.password.trim()
+      ) {
+        body.password =
+          form.password.trim();
+      }
+
+      /* =================================================
+         REQUEST
+      ================================================= */
+
+      const response =
+        await fetch(
+          url,
+          {
+            method,
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify(body),
+          }
+        );
 
       const data =
         await response.json();
@@ -229,6 +332,10 @@ export default function ManageUsersPage() {
         );
       }
 
+      /* =================================================
+         SUCCESS
+      ================================================= */
+
       setSuccess(
         editingUser
           ? 'User updated successfully.'
@@ -237,8 +344,17 @@ export default function ManageUsersPage() {
 
       await loadUsers();
 
+      /* =================================================
+         CLOSE MODAL
+      ================================================= */
+
       setTimeout(() => {
-        closeModal();
+        setShowModal(false);
+        setEditingUser(null);
+        setForm({
+          ...initialForm,
+        });
+        setSuccess('');
       }, 700);
     } catch (error) {
       console.error(
@@ -260,16 +376,22 @@ export default function ManageUsersPage() {
      DELETE USER
   ===================================================== */
 
-  async function deleteUser(user: User) {
+  async function deleteUser(
+    user: User
+  ) {
     const confirmed =
       window.confirm(
-        `Are you sure you want to delete ${user.name}?`
+        `Are you sure you want to permanently delete ${user.name}?`
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
+      setDeletingId(user.id);
       setError('');
+      setSuccess('');
 
       const response =
         await fetch(
@@ -292,11 +414,11 @@ export default function ManageUsersPage() {
         );
       }
 
-      await loadUsers();
-
       setSuccess(
         'User deleted successfully.'
       );
+
+      await loadUsers();
     } catch (error) {
       console.error(
         'DELETE USER ERROR:',
@@ -308,6 +430,8 @@ export default function ManageUsersPage() {
           ? error.message
           : 'Unable to delete user.'
       );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -341,7 +465,9 @@ export default function ManageUsersPage() {
      ROLE LABEL
   ===================================================== */
 
-  function roleLabel(role: UserRole) {
+  function roleLabel(
+    role: UserRole
+  ) {
     switch (role) {
       case 'admin':
         return 'Administrator';
@@ -358,6 +484,36 @@ export default function ManageUsersPage() {
   }
 
   /* =====================================================
+     STATISTICS
+  ===================================================== */
+
+  const totalUsers =
+    users.length;
+
+  const adminCount =
+    users.filter(
+      (user) =>
+        user.role === 'admin'
+    ).length;
+
+  const lecturerCount =
+    users.filter(
+      (user) =>
+        user.role === 'lecturer'
+    ).length;
+
+  const parentCount =
+    users.filter(
+      (user) =>
+        user.role === 'parent'
+    ).length;
+
+  const activeCount =
+    users.filter(
+      (user) => user.active
+    ).length;
+
+  /* =====================================================
      RENDER
   ===================================================== */
 
@@ -370,6 +526,7 @@ export default function ManageUsersPage() {
         ================================================= */}
 
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-gold">
               Administration
@@ -380,8 +537,9 @@ export default function ManageUsersPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Create and manage accounts for
-              administrators, lecturers and parents.
+              Create and manage LMS accounts
+              for administrators, lecturers
+              and parents.
             </p>
           </div>
 
@@ -413,13 +571,16 @@ export default function ManageUsersPage() {
         )}
 
         {/* =================================================
-            USER COUNT
+            STATISTICS
         ================================================= */}
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* TOTAL */}
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
+
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-green/10">
                 <Users className="h-5 w-5 text-brand-green" />
               </div>
@@ -430,14 +591,40 @@ export default function ManageUsersPage() {
                 </p>
 
                 <p className="mt-1 text-2xl font-bold text-brand-dark">
-                  {users.length}
+                  {totalUsers}
                 </p>
               </div>
+
             </div>
           </div>
 
+          {/* ADMINS */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50">
+                <ShieldCheck className="h-5 w-5 text-green-600" />
+              </div>
+
+              <div>
+                <p className="text-sm text-slate-500">
+                  Administrators
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-brand-dark">
+                  {adminCount}
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          {/* LECTURERS */}
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="flex items-center gap-4">
+
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50">
                 <GraduationCap className="h-5 w-5 text-blue-600" />
               </div>
@@ -448,20 +635,18 @@ export default function ManageUsersPage() {
                 </p>
 
                 <p className="mt-1 text-2xl font-bold text-brand-dark">
-                  {
-                    users.filter(
-                      (user) =>
-                        user.role ===
-                        'lecturer'
-                    ).length
-                  }
+                  {lecturerCount}
                 </p>
               </div>
+
             </div>
           </div>
 
+          {/* PARENTS */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
+
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-50">
                 <UserRound className="h-5 w-5 text-purple-600" />
               </div>
@@ -472,19 +657,46 @@ export default function ManageUsersPage() {
                 </p>
 
                 <p className="mt-1 text-2xl font-bold text-brand-dark">
-                  {
-                    users.filter(
-                      (user) =>
-                        user.role ===
-                        'parent'
-                    ).length
-                  }
+                  {parentCount}
                 </p>
               </div>
+
             </div>
           </div>
 
         </div>
+
+        {/* =================================================
+            ACTIVE SUMMARY
+        ================================================= */}
+
+        {!loading && totalUsers > 0 && (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="text-sm font-bold text-brand-dark">
+                  Account Status
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Currently active system accounts
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-lg font-bold text-green-600">
+                  {activeCount}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  of {totalUsers} active
+                </p>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* =================================================
             USERS TABLE
@@ -493,28 +705,40 @@ export default function ManageUsersPage() {
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
 
           <div className="border-b border-slate-200 px-5 py-4">
+
             <h2 className="font-bold text-brand-dark">
               System Users
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
-              Users who can access the LMS and
-              administrative portals.
+              Users stored in the LMS users table.
             </p>
+
           </div>
+
+          {/* LOADING */}
 
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center">
+
               <div className="text-center">
+
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-green" />
 
                 <p className="mt-3 text-sm text-slate-500">
                   Loading users...
                 </p>
+
               </div>
+
             </div>
+
           ) : users.length === 0 ? (
+
+            /* EMPTY */
+
             <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
+
               <Users className="h-12 w-12 text-slate-200" />
 
               <h3 className="mt-4 text-sm font-bold text-brand-dark">
@@ -522,22 +746,29 @@ export default function ManageUsersPage() {
               </h3>
 
               <p className="mt-1 text-sm text-slate-500">
-                Create your first system user.
+                Create your first LMS user.
               </p>
 
               <button
                 type="button"
                 onClick={openAddModal}
-                className="mt-5 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-bold text-white"
+                className="mt-5 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-dark"
               >
                 Add User
               </button>
+
             </div>
+
           ) : (
+
+            /* TABLE */
+
             <div className="overflow-x-auto">
-              <table className="min-w-[850px] w-full">
+
+              <table className="min-w-[900px] w-full">
 
                 <thead>
+
                   <tr className="border-b border-slate-200 bg-slate-50">
 
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -561,114 +792,166 @@ export default function ManageUsersPage() {
                     </th>
 
                   </tr>
+
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
 
-                  {users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="transition hover:bg-slate-50"
-                    >
+                  {users.map(
+                    (user) => (
+                      <tr
+                        key={user.id}
+                        className="transition hover:bg-slate-50"
+                      >
 
-                      <td className="px-5 py-4">
-                        <p className="text-sm font-bold text-brand-dark">
-                          {user.name}
-                        </p>
+                        {/* USER */}
 
-                        <p className="mt-1 text-xs text-slate-500">
-                          {user.email}
-                        </p>
-                      </td>
+                        <td className="px-5 py-4">
 
-                      <td className="px-5 py-4">
-                        <span
-                          className={`
-                            inline-flex items-center gap-1.5
-                            rounded-full px-3 py-1
-                            text-xs font-bold
-                            ${
-                              user.role ===
-                              'admin'
-                                ? 'bg-green-50 text-green-700'
-                                : user.role ===
-                                  'lecturer'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-purple-50 text-purple-700'
-                            }
-                          `}
-                        >
-                          <RoleIcon
-                            role={user.role}
-                          />
+                          <p className="text-sm font-bold text-brand-dark">
+                            {user.name}
+                          </p>
 
-                          {roleLabel(
-                            user.role
-                          )}
-                        </span>
-                      </td>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {user.email}
+                          </p>
 
-                      <td className="px-5 py-4 text-sm text-slate-500">
-                        {user.phone || '—'}
-                      </td>
+                        </td>
 
-                      <td className="px-5 py-4">
-                        <span
-                          className={`
-                            inline-flex rounded-full
-                            px-3 py-1 text-xs font-bold
-                            ${
-                              user.active
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-red-50 text-red-700'
-                            }
-                          `}
-                        >
-                          {user.active
-                            ? 'Active'
-                            : 'Inactive'}
-                        </span>
-                      </td>
+                        {/* ROLE */}
 
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
+                        <td className="px-5 py-4">
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openEditModal(
-                                user
-                              )
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-brand-green transition hover:border-brand-green/30 hover:bg-brand-green/5"
+                          <span
+                            className={`
+                              inline-flex items-center gap-1.5
+                              rounded-full px-3 py-1
+                              text-xs font-bold
+                              ${
+                                user.role ===
+                                'admin'
+                                  ? 'bg-green-50 text-green-700'
+                                  : user.role ===
+                                    'lecturer'
+                                  ? 'bg-blue-50 text-blue-700'
+                                  : 'bg-purple-50 text-purple-700'
+                              }
+                            `}
                           >
-                            <Edit3 className="h-3.5 w-3.5" />
 
-                            Edit
-                          </button>
+                            <RoleIcon
+                              role={
+                                user.role
+                              }
+                            />
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              deleteUser(
-                                user
-                              )
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
+                            {roleLabel(
+                              user.role
+                            )}
+
+                          </span>
+
+                        </td>
+
+                        {/* PHONE */}
+
+                        <td className="px-5 py-4 text-sm text-slate-500">
+                          {user.phone ||
+                            '—'}
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="px-5 py-4">
+
+                          <span
+                            className={`
+                              inline-flex rounded-full
+                              px-3 py-1 text-xs font-bold
+                              ${
+                                user.active
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-red-50 text-red-700'
+                              }
+                            `}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            {user.active
+                              ? 'Active'
+                              : 'Inactive'}
+                          </span>
 
-                            Delete
-                          </button>
+                        </td>
 
-                        </div>
-                      </td>
+                        {/* ACTIONS */}
 
-                    </tr>
-                  ))}
+                        <td className="px-5 py-4">
+
+                          <div className="flex justify-end gap-2">
+
+                            {/* EDIT */}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openEditModal(
+                                  user
+                                )
+                              }
+                              disabled={
+                                deletingId !==
+                                null
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-brand-green transition hover:border-brand-green/30 hover:bg-brand-green/5 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+
+                              <Edit3 className="h-3.5 w-3.5" />
+
+                              Edit
+
+                            </button>
+
+                            {/* DELETE */}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deleteUser(
+                                  user
+                                )
+                              }
+                              disabled={
+                                deletingId ===
+                                user.id
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+
+                              {deletingId ===
+                              user.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+
+                              {deletingId ===
+                              user.id
+                                ? 'Deleting...'
+                                : 'Delete'}
+
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+                    )
+                  )}
 
                 </tbody>
+
               </table>
+
             </div>
           )}
 
@@ -680,15 +963,26 @@ export default function ManageUsersPage() {
       =================================================== */}
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeModal();
+            }
+          }}
+        >
 
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl">
 
-            {/* Header */}
+            {/* HEADER */}
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
 
               <div>
+
                 <h2 className="text-lg font-bold text-brand-dark">
                   {editingUser
                     ? 'Edit User'
@@ -697,32 +991,34 @@ export default function ManageUsersPage() {
 
                 <p className="mt-1 text-xs text-slate-500">
                   {editingUser
-                    ? 'Update this user account.'
-                    : 'Create a new system user account.'}
+                    ? 'Update this LMS user account.'
+                    : 'Create a new LMS user account.'}
                 </p>
+
               </div>
 
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={saving}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
 
             </div>
 
-            {/* Form */}
+            {/* FORM */}
 
             <form
               onSubmit={saveUser}
               className="space-y-5 px-6 py-6"
             >
 
-              {/* Name */}
+              {/* NAME */}
 
               <div>
+
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Full Name *
                 </label>
@@ -737,14 +1033,16 @@ export default function ManageUsersPage() {
                       event.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                   placeholder="Enter full name"
                 />
+
               </div>
 
-              {/* Email */}
+              {/* EMAIL */}
 
               <div>
+
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Email Address *
                 </label>
@@ -759,14 +1057,16 @@ export default function ManageUsersPage() {
                       event.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                   placeholder="user@example.com"
                 />
+
               </div>
 
-              {/* Phone */}
+              {/* PHONE */}
 
               <div>
+
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Phone Number
                 </label>
@@ -780,14 +1080,16 @@ export default function ManageUsersPage() {
                       event.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                   placeholder="07XXXXXXXX"
                 />
+
               </div>
 
-              {/* Role */}
+              {/* ROLE */}
 
               <div>
+
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   User Role *
                 </label>
@@ -802,12 +1104,8 @@ export default function ManageUsersPage() {
                         .value as UserRole
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                 >
-                  <option value="admin">
-                    Administrator
-                  </option>
-
                   <option value="lecturer">
                     Lecturer
                   </option>
@@ -815,16 +1113,21 @@ export default function ManageUsersPage() {
                   <option value="parent">
                     Parent
                   </option>
+
                 </select>
+
               </div>
 
-              {/* Password */}
+              {/* PASSWORD */}
 
               <div>
+
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+
                   {editingUser
                     ? 'New Password'
                     : 'Password *'}
+
                 </label>
 
                 <input
@@ -838,16 +1141,30 @@ export default function ManageUsersPage() {
                     )
                   }
                   minLength={8}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
+                  autoComplete={
+                    editingUser
+                      ? 'new-password'
+                      : 'new-password'
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                   placeholder={
                     editingUser
                       ? 'Leave blank to keep current password'
                       : 'Minimum 8 characters'
                   }
                 />
+
+                {editingUser && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Leave this field blank if
+                    you do not want to change
+                    the current password.
+                  </p>
+                )}
+
               </div>
 
-              {/* Alerts */}
+              {/* ALERTS */}
 
               {error && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -861,7 +1178,7 @@ export default function ManageUsersPage() {
                 </div>
               )}
 
-              {/* Buttons */}
+              {/* BUTTONS */}
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
 
@@ -869,7 +1186,7 @@ export default function ManageUsersPage() {
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -877,8 +1194,9 @@ export default function ManageUsersPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
+
                   {saving && (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   )}
@@ -886,12 +1204,15 @@ export default function ManageUsersPage() {
                   {editingUser
                     ? 'Update User'
                     : 'Create User'}
+
                 </button>
 
               </div>
 
             </form>
+
           </div>
+
         </div>
       )}
     </div>
