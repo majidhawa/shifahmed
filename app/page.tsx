@@ -5,12 +5,14 @@ import { HeroSlider } from '@/components/HeroSlider';
 import { PartnersMarquee } from '@/components/PartnersMarquee';
 import { courses, site } from '@/data/site';
 import { BoardSlider } from '@/components/BoardSlider';
+import { AdmissionsCountdown } from '@/components/AdmissionsCountdown';
 
 export default function HomePage() {
   return (
-    <main>
-      <HeroSlider />
+<main>
+  <HeroSlider />
 
+  {/* rest of your homepage */}
       <section className="py-24 overflow-hidden">
         <Container className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
@@ -24,7 +26,7 @@ export default function HomePage() {
             </h2>
             <div className="mt-4 h-1 w-12 rounded-full bg-brand-gold" />
             <p className="mt-6 text-base leading-8 text-slate-600">{site.about}</p>
-
+ <AdmissionsCountdown />
             <div className="mt-8 grid grid-cols-3 gap-4">
               {[
                 { value: '3+', label: 'Programmes' },
