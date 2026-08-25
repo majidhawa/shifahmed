@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 const targetDate = new Date('2026-08-28T23:59:59+03:00').getTime();
@@ -27,10 +28,18 @@ export function AdmissionsCountdown() {
       }
 
       setTimeLeft({
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / (1000 * 60)) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
+        days: Math.floor(
+          difference / (1000 * 60 * 60 * 24)
+        ),
+        hours: Math.floor(
+          (difference / (1000 * 60 * 60)) % 24
+        ),
+        minutes: Math.floor(
+          (difference / (1000 * 60)) % 60
+        ),
+        seconds: Math.floor(
+          (difference / 1000) % 60
+        ),
       });
     };
 
@@ -41,9 +50,27 @@ export function AdmissionsCountdown() {
     return () => clearInterval(timer);
   }, []);
 
-  const timeBox = (value: number, label: string) => (
-    <div className="flex min-w-0 flex-1 flex-col items-center rounded-xl border border-white/10 bg-white/10 px-2 py-3 backdrop-blur-md">
-      <span className="text-xl font-black leading-none text-white">
+  const timeBox = (
+    value: number,
+    label: string
+  ) => (
+    <div
+      className="
+        flex
+        min-w-0
+        flex-1
+        flex-col
+        items-center
+        rounded-xl
+        border
+        border-white/10
+        bg-white/10
+        px-2
+        py-3
+        backdrop-blur-md
+      "
+    >
+      <span className="text-xl font-black leading-none text-white md:text-2xl">
         {String(value).padStart(2, '0')}
       </span>
 
@@ -54,89 +81,142 @@ export function AdmissionsCountdown() {
   );
 
   return (
- <aside
-  className="
-    fixed
-    right-5
-    top-[255px]
-    z-[40]
-    hidden
-    w-[300px]
-    overflow-hidden
-    rounded-[2rem]
-    border
-    border-white/10
-    bg-brand-dark
-    shadow-[0_20px_60px_rgba(0,0,0,0.30)]
-    lg:block
-  "
->
-      {/* Decorative glow */}
-      <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-brand-green/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-brand-gold/10 blur-3xl" />
+    <div
+      className="
+        relative
+        w-full
+        max-w-[390px]
+        overflow-hidden
+        rounded-[2rem]
+        border
+        border-white/15
+        bg-brand-dark/90
+        shadow-[0_25px_80px_rgba(0,0,0,0.45)]
+        backdrop-blur-xl
+      "
+    >
 
-      {/* Top accent */}
-      <div className="relative h-1.5 w-full bg-gradient-to-r from-brand-green via-brand-gold to-brand-green" />
+      {/* ================= DECORATIVE GLOW ================= */}
 
-      <div className="relative p-6">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-brand-green/20 blur-3xl" />
+
+      <div className="pointer-events-none absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-brand-gold/10 blur-3xl" />
+
+
+      {/* ================= TOP ACCENT ================= */}
+
+      <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-brand-green via-brand-gold to-brand-green" />
+
+
+      {/* ================= CONTENT ================= */}
+
+      <div className="relative p-6 md:p-7">
 
         {/* Admissions Alert */}
+
         <div className="flex items-center gap-2">
+
           <span className="relative flex h-2.5 w-2.5">
+
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-gold opacity-60" />
+
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-gold" />
+
           </span>
 
           <p className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-brand-gold">
             Admissions Alert
           </p>
+
         </div>
 
-        {/* Heading */}
-        <h3 className="mt-3 text-[25px] font-black leading-[1.1] tracking-tight text-white">
+
+        {/* ================= TITLE ================= */}
+
+        <h3 className="mt-4 text-2xl font-black leading-[1.1] tracking-tight text-white md:text-[27px]">
+
           September Intake
+
           <span className="mt-1 block text-white">
             Admissions Ongoing
           </span>
+
         </h3>
 
+
         {/* Description */}
-        <p className="mt-3 text-[13px] leading-6 text-white/60">
-          Building the next generation of healthcare professionals.
+
+        <p className="mt-4 text-sm leading-6 text-white/60">
+          Building the next generation of healthcare
+          professionals through quality training,
+          practical skills and innovation.
         </p>
 
+
         {/* Divider */}
+
         <div className="my-5 h-px bg-white/10" />
 
-        {/* Countdown header */}
+
+        {/* ================= DEADLINE ================= */}
+
         <div className="flex items-center justify-between gap-3">
+
           <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-white">
-              3 Days To Go
+
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-gold">
+              Application Deadline
             </p>
 
-            <p className="mt-1 text-[9px] text-white/40">
-              Applications closing soon
+            <p className="mt-1 text-xs text-white/40">
+              Secure your place before the deadline
             </p>
+
           </div>
 
-          <div className="rounded-full border border-brand-gold/20 bg-brand-gold/10 px-2.5 py-1">
-            <p className="text-[9px] font-bold text-brand-gold">
+
+          <div className="shrink-0 rounded-full border border-brand-gold/20 bg-brand-gold/10 px-3 py-1.5">
+
+            <p className="text-[9px] font-bold tracking-wider text-brand-gold">
               28 AUG 2026
             </p>
+
           </div>
+
         </div>
 
-        {/* Countdown boxes */}
-        <div className="mt-4 flex gap-2">
+
+        {/* ================= COUNTDOWN ================= */}
+
+        <div className="mt-4 grid grid-cols-4 gap-2">
+
           {timeBox(timeLeft.days, 'Days')}
+
           {timeBox(timeLeft.hours, 'Hours')}
-          {timeBox(timeLeft.minutes, 'Min')}
-          {timeBox(timeLeft.seconds, 'Sec')}
+
+          {timeBox(timeLeft.minutes, 'Minutes')}
+
+          {timeBox(timeLeft.seconds, 'Seconds')}
+
         </div>
 
-        {/* CTA */}
-        <a
+
+        {/* ================= COUNTDOWN STATUS ================= */}
+
+        <div className="mt-4 flex items-center justify-center gap-2">
+
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green" />
+
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">
+            Enrollment closes soon
+          </p>
+
+        </div>
+
+
+        {/* ================= CTA ================= */}
+
+        <Link
           href="/apply"
           className="
             mt-5
@@ -148,7 +228,7 @@ export function AdmissionsCountdown() {
             rounded-full
             bg-brand-green
             px-5
-            py-3
+            py-3.5
             text-sm
             font-bold
             text-white
@@ -161,6 +241,7 @@ export function AdmissionsCountdown() {
             hover:text-brand-dark
           "
         >
+
           Secure Your Place
 
           <svg
@@ -174,13 +255,19 @@ export function AdmissionsCountdown() {
             <path d="M5 12h14" />
             <path d="m13 6 6 6-6 6" />
           </svg>
-        </a>
 
-        {/* Bottom text */}
-        <p className="mt-3 text-center text-[9px] font-medium text-white/35">
-          Start your healthcare career with Shifah Medical Training College.
+        </Link>
+
+
+        {/* ================= FOOTER ================= */}
+
+        <p className="mt-3 text-center text-[9px] font-medium leading-5 text-white/35">
+          Start your healthcare career with
+          Shifah Medical Training College.
         </p>
+
       </div>
-    </aside>
+
+    </div>
   );
 }
