@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -6,7 +5,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 export const runtime = 'nodejs';
 
 /* =========================================================
-TYPES
+   TYPES
 ========================================================= */
 
 type RouteContext = {
@@ -16,7 +15,37 @@ type RouteContext = {
 };
 
 /* =========================================================
-GET SINGLE APPLICATION
+   HELPERS
+========================================================= */
+
+function normalizeStatus(value: unknown) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  return String(value).trim();
+}
+
+function cleanValue(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    return trimmed === '' ? null : trimmed;
+  }
+
+  return value;
+}
+
+/* =========================================================
+   GET SINGLE APPLICATION
 ========================================================= */
 
 export async function GET(
@@ -25,10 +54,6 @@ export async function GET(
 ) {
   try {
     const admin = requireAdmin();
-
-    /* =====================================================
-       ADMIN AUTHENTICATION
-    ===================================================== */
 
     if (!admin) {
       return NextResponse.json(
@@ -41,7 +66,7 @@ export async function GET(
     }
 
     /* =====================================================
-       GET APPLICATION ID
+       GET ID
     ===================================================== */
 
     const { id: idParam } = await context.params;
@@ -68,10 +93,6 @@ export async function GET(
           id,
           application_number,
 
-          /* =================================================
-             PERSONAL INFORMATION
-          ================================================= */
-
           surname,
           middle_name,
           first_name,
@@ -83,20 +104,12 @@ export async function GET(
           id_passport_number,
           marital_status,
 
-          /* =================================================
-             CONTACT INFORMATION
-          ================================================= */
-
           postal_address,
           postal_code,
           town,
           county,
           mobile,
           email,
-
-          /* =================================================
-             ACADEMIC INFORMATION
-          ================================================= */
 
           kcse_index,
           kcse_year,
@@ -110,16 +123,8 @@ export async function GET(
           previous_institution,
           highest_qualification,
 
-          /* =================================================
-             COURSE & INTAKE
-          ================================================= */
-
           course,
           intake,
-
-          /* =================================================
-             SPONSOR INFORMATION
-          ================================================= */
 
           sponsor_type,
           sponsor_name,
@@ -127,18 +132,10 @@ export async function GET(
           sponsor_mobile,
           sponsor_email,
 
-          /* =================================================
-             GUARDIAN INFORMATION
-          ================================================= */
-
           guardian_name,
           guardian_relationship,
           guardian_mobile,
           guardian_email,
-
-          /* =================================================
-             DOCUMENTS
-          ================================================= */
 
           id_document,
           kcse_certificate,
@@ -146,33 +143,16 @@ export async function GET(
 
           declaration,
 
-          /* =================================================
-             APPLICATION FEE
-          ================================================= */
-
           application_fee,
 
-          /* =================================================
-             PAYMENT STATUS
-          ================================================= */
-
           payment_status,
-
-          /* =================================================
-             MANUAL M-PESA PAYMENT
-          ================================================= */
 
           manual_mpesa_code,
           manual_mpesa_phone,
           manual_payment_submitted_at,
-
           manual_payment_verified_at,
           manual_payment_verified_by,
           manual_payment_rejection_reason,
-
-          /* =================================================
-             AUTOMATIC / HISTORICAL M-PESA INFORMATION
-          ================================================= */
 
           mpesa_checkout_request_id,
           mpesa_merchant_request_id,
@@ -188,23 +168,11 @@ export async function GET(
           payment_receipt_number,
           payment_verified_at,
 
-          /* =================================================
-             APPLICATION STATUS
-          ================================================= */
-
           application_status,
           approved_at,
           rejection_reason,
 
-          /* =================================================
-             ADMISSION
-          ================================================= */
-
           admission_number,
-
-          /* =================================================
-             DATES
-          ================================================= */
 
           created_at,
           updated_at
@@ -219,7 +187,7 @@ export async function GET(
     );
 
     /* =====================================================
-       APPLICATION NOT FOUND
+       NOT FOUND
     ===================================================== */
 
     if (result.rows.length === 0) {
@@ -234,22 +202,18 @@ export async function GET(
 
     const application = result.rows[0];
 
-    /* =====================================================
-       NORMALIZE MANUAL PAYMENT DATA
-    ===================================================== */
+    const paymentStatus = String(
+      application.payment_status || 'Pending'
+    ).trim();
 
     const manualMpesaCode =
       application.manual_mpesa_code
-        ? String(
-            application.manual_mpesa_code
-          ).trim()
+        ? String(application.manual_mpesa_code).trim()
         : null;
 
     const manualMpesaPhone =
       application.manual_mpesa_phone
-        ? String(
-            application.manual_mpesa_phone
-          ).trim()
+        ? String(application.manual_mpesa_phone).trim()
         : null;
 
     const rejectionReason =
@@ -259,31 +223,27 @@ export async function GET(
           ).trim()
         : null;
 
-    const paymentStatus =
-      application.payment_status
-        ? String(
-            application.payment_status
-          ).trim()
-        : 'Pending';
-
-    /* =====================================================
-       RETURN APPLICATION
-
-       The original application object is preserved.
-
-       A dedicated manualMpesaPayment object is also added
-       so the admin UI can easily display the payment details.
-    ===================================================== */
-
     return NextResponse.json({
       success: true,
 
       application: {
         ...application,
 
-        /* =================================================
-           MANUAL M-PESA PAYMENT OBJECT
-        ================================================= */
+        manualMpesaCode,
+
+        manualMpesaPhone,
+
+        manualPaymentSubmittedAt:
+          application.manual_payment_submitted_at || null,
+
+        manualPaymentVerifiedAt:
+          application.manual_payment_verified_at || null,
+
+        manualPaymentVerifiedBy:
+          application.manual_payment_verified_by || null,
+
+        manualPaymentRejectionReason:
+          rejectionReason,
 
         manualMpesaPayment: {
           code: manualMpesaCode,
@@ -291,25 +251,17 @@ export async function GET(
           phone: manualMpesaPhone,
 
           submittedAt:
-            application
-              .manual_payment_submitted_at ||
-            null,
+            application.manual_payment_submitted_at || null,
 
           verifiedAt:
-            application
-              .manual_payment_verified_at ||
-            null,
+            application.manual_payment_verified_at || null,
 
           verifiedBy:
-            application
-              .manual_payment_verified_by ||
-            null,
+            application.manual_payment_verified_by || null,
 
-          rejectionReason:
-            rejectionReason,
+          rejectionReason,
 
-          status:
-            paymentStatus,
+          status: paymentStatus,
 
           awaitingApproval:
             paymentStatus
@@ -318,44 +270,16 @@ export async function GET(
             'awaiting_approval',
 
           approved:
-            paymentStatus === 'Paid' ||
-            paymentStatus === 'Approved' ||
-            paymentStatus === 'Verified',
+            ['paid', 'approved', 'verified'].includes(
+              paymentStatus.toLowerCase()
+            ),
 
           rejected:
-            paymentStatus === 'Rejected',
+            paymentStatus.toLowerCase() === 'rejected',
 
           submitted:
             Boolean(manualMpesaCode),
         },
-
-        /* =================================================
-           DIRECT / EASY-ACCESS FIELDS
-        ================================================= */
-
-        manualMpesaCode:
-          manualMpesaCode,
-
-        manualMpesaPhone:
-          manualMpesaPhone,
-
-        manualPaymentSubmittedAt:
-          application
-            .manual_payment_submitted_at ||
-          null,
-
-        manualPaymentVerifiedAt:
-          application
-            .manual_payment_verified_at ||
-          null,
-
-        manualPaymentVerifiedBy:
-          application
-            .manual_payment_verified_by ||
-          null,
-
-        manualPaymentRejectionReason:
-          rejectionReason,
       },
     });
   } catch (error) {
@@ -378,7 +302,7 @@ export async function GET(
 }
 
 /* =========================================================
-PATCH APPLICATION / PAYMENT
+   PATCH APPLICATION
 ========================================================= */
 
 export async function PATCH(
@@ -386,11 +310,11 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
-    const admin = requireAdmin();
-
     /* =====================================================
        ADMIN AUTHENTICATION
     ===================================================== */
+
+    const admin = requireAdmin();
 
     if (!admin) {
       return NextResponse.json(
@@ -421,10 +345,10 @@ export async function PATCH(
     }
 
     /* =====================================================
-       READ REQUEST
+       READ BODY
     ===================================================== */
 
-    let body: any;
+    let body: Record<string, unknown>;
 
     try {
       body = await request.json();
@@ -438,38 +362,28 @@ export async function PATCH(
       );
     }
 
-    const applicationStatus =
-      body?.application_status;
-
-    const paymentStatus =
-      body?.payment_status;
-
-    const paymentRejectionReason =
-      body?.manual_payment_rejection_reason;
-
-    const applicationRejectionReason =
-      body?.rejection_reason;
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid request body.',
+        },
+        { status: 400 }
+      );
+    }
 
     /* =====================================================
-       GET CURRENT APPLICATION
+       GET EXISTING APPLICATION
     ===================================================== */
 
     const existingResult = await pool.query(
       `
         SELECT
-          id,
-          application_number,
-
-          payment_status,
-
-          manual_mpesa_code,
-          manual_mpesa_phone,
-          manual_payment_submitted_at,
-          manual_payment_verified_at,
-          manual_payment_verified_by,
-          manual_payment_rejection_reason,
-
-          application_status
+          *
 
         FROM applications
 
@@ -494,20 +408,41 @@ export async function PATCH(
       existingResult.rows[0];
 
     /* =====================================================
+       STATUS VALUES
+    ===================================================== */
+
+    const applicationStatus =
+      normalizeStatus(body.application_status);
+
+    const paymentStatus =
+      normalizeStatus(body.payment_status);
+
+    const paymentRejectionReason =
+      body.manual_payment_rejection_reason;
+
+    const applicationRejectionReason =
+      body.rejection_reason;
+
+    /* =====================================================
        VALIDATE APPLICATION STATUS
     ===================================================== */
 
+    const validApplicationStatuses = [
+      'Pending',
+      'Approved',
+      'Rejected',
+    ];
+
     if (
       applicationStatus !== undefined &&
-      applicationStatus !== 'Approved' &&
-      applicationStatus !== 'Rejected' &&
-      applicationStatus !== 'Pending'
+      !validApplicationStatuses.includes(
+        applicationStatus
+      )
     ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            'Invalid application status.',
+          message: 'Invalid application status.',
         },
         { status: 400 }
       );
@@ -517,82 +452,104 @@ export async function PATCH(
        VALIDATE PAYMENT STATUS
     ===================================================== */
 
+    const validPaymentStatuses = [
+      'Pending',
+      'Awaiting Approval',
+      'Paid',
+      'Rejected',
+    ];
+
     if (
       paymentStatus !== undefined &&
-      paymentStatus !== 'Paid' &&
-      paymentStatus !== 'Rejected' &&
-      paymentStatus !== 'Awaiting Approval' &&
-      paymentStatus !== 'Pending'
+      !validPaymentStatuses.includes(
+        paymentStatus
+      )
     ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            'Invalid payment status.',
+          message: 'Invalid payment status.',
         },
         { status: 400 }
       );
     }
 
     /* =====================================================
-       NOTHING TO UPDATE
+       EDITABLE APPLICATION FIELDS
+
+       IMPORTANT:
+
+       These are the fields that the edit page is
+       allowed to modify.
+
+       This prevents users from injecting arbitrary
+       database column names into the SQL query.
     ===================================================== */
 
-    if (
-      applicationStatus === undefined &&
-      paymentStatus === undefined
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'No valid status update was provided.',
-        },
-        { status: 400 }
-      );
-    }
+    const editableFields = [
+      /* PERSONAL */
+      'surname',
+      'middle_name',
+      'first_name',
+      'date_of_birth',
+      'gender',
+      'nationality',
+      'country',
+      'id_passport_number',
+      'marital_status',
 
-    /* =====================================================
-       PAYMENT APPROVAL VALIDATION
-    ===================================================== */
+      /* CONTACT */
+      'postal_address',
+      'postal_code',
+      'town',
+      'county',
+      'mobile',
+      'email',
 
-    if (paymentStatus === 'Paid') {
-      const transactionCode =
-        existingApplication.manual_mpesa_code;
+      /* ACADEMIC */
+      'kcse_index',
+      'kcse_year',
+      'kcse_mean_grade',
+      'english_grade',
+      'kiswahili_grade',
+      'biology_grade',
+      'chemistry_grade',
+      'physics_grade',
+      'mathematics_grade',
+      'previous_institution',
+      'highest_qualification',
 
-      if (
-        !transactionCode ||
-        String(transactionCode).trim() === ''
-      ) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              'Cannot approve payment because the applicant has not submitted an M-Pesa transaction code.',
-          },
-          { status: 400 }
-        );
-      }
-    }
+      /* COURSE */
+      'course',
+      'intake',
 
-    /* =====================================================
-       PAYMENT APPROVAL DUPLICATE CHECK
-    ===================================================== */
+      /* SPONSOR */
+      'sponsor_type',
+      'sponsor_name',
+      'sponsor_relationship',
+      'sponsor_mobile',
+      'sponsor_email',
 
-    if (
-      paymentStatus === 'Paid' &&
-      existingApplication.payment_status ===
-        'Paid'
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'This payment has already been approved.',
-        },
-        { status: 400 }
-      );
-    }
+      /* GUARDIAN */
+      'guardian_name',
+      'guardian_relationship',
+      'guardian_mobile',
+      'guardian_email',
+
+      /* DOCUMENTS */
+      'id_document',
+      'kcse_certificate',
+      'passport_photo',
+
+      /* DECLARATION */
+      'declaration',
+
+      /* APPLICATION */
+      'application_fee',
+
+      /* ADMISSION */
+      'admission_number',
+    ] as const;
 
     /* =====================================================
        BUILD UPDATE
@@ -604,7 +561,30 @@ export async function PATCH(
     let parameterIndex = 1;
 
     /* =====================================================
-       APPLICATION STATUS
+       UPDATE NORMAL APPLICATION FIELDS
+    ===================================================== */
+
+    for (const field of editableFields) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          body,
+          field
+        )
+      ) {
+        fields.push(
+          `${field} = $${parameterIndex}`
+        );
+
+        values.push(
+          cleanValue(body[field])
+        );
+
+        parameterIndex++;
+      }
+    }
+
+    /* =====================================================
+       UPDATE APPLICATION STATUS
     ===================================================== */
 
     if (applicationStatus !== undefined) {
@@ -615,6 +595,53 @@ export async function PATCH(
       values.push(applicationStatus);
 
       parameterIndex++;
+    }
+
+    /* =====================================================
+       APPLICATION APPROVED
+    ===================================================== */
+
+    if (applicationStatus === 'Approved') {
+      fields.push(
+        `approved_at = NOW()`
+      );
+
+      fields.push(
+        `rejection_reason = NULL`
+      );
+    }
+
+    /* =====================================================
+       APPLICATION REJECTED
+    ===================================================== */
+
+    if (applicationStatus === 'Rejected') {
+      if (
+        applicationRejectionReason !== undefined
+      ) {
+        const reason =
+          cleanValue(
+            applicationRejectionReason
+          );
+
+        fields.push(
+          `rejection_reason = $${parameterIndex}`
+        );
+
+        values.push(reason);
+
+        parameterIndex++;
+      }
+    }
+
+    /* =====================================================
+       APPLICATION RETURNED TO PENDING
+    ===================================================== */
+
+    if (applicationStatus === 'Pending') {
+      fields.push(
+        `approved_at = NULL`
+      );
     }
 
     /* =====================================================
@@ -636,6 +663,27 @@ export async function PATCH(
     ===================================================== */
 
     if (paymentStatus === 'Paid') {
+      const transactionCode =
+        existingApplication.manual_mpesa_code;
+
+      if (
+        !transactionCode ||
+        String(transactionCode).trim() === ''
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'Cannot approve payment because the applicant has not submitted an M-Pesa transaction code.',
+          },
+          { status: 400 }
+        );
+      }
+
+      /* -----------------------------------------------
+         Verification information
+      ------------------------------------------------ */
+
       fields.push(
         `manual_payment_verified_at = NOW()`
       );
@@ -660,25 +708,23 @@ export async function PATCH(
         `manual_payment_rejection_reason = NULL`
       );
 
-      /* ===============================================
-         KEEP MANUAL M-PESA CODE AS OFFICIAL CODE
-      =============================================== */
+      /* -----------------------------------------------
+         Save manual M-Pesa code as official code
+      ------------------------------------------------ */
 
       fields.push(
         `mpesa_transaction_code = $${parameterIndex}`
       );
 
       values.push(
-        String(
-          existingApplication.manual_mpesa_code
-        ).trim()
+        String(transactionCode).trim()
       );
 
       parameterIndex++;
 
-      /* ===============================================
-         KEEP MANUAL PHONE AS M-PESA PHONE
-      =============================================== */
+      /* -----------------------------------------------
+         Save manual M-Pesa phone
+      ------------------------------------------------ */
 
       if (
         existingApplication.manual_mpesa_phone
@@ -701,23 +747,19 @@ export async function PATCH(
 
     if (paymentStatus === 'Rejected') {
       if (
-        paymentRejectionReason !== undefined &&
-        paymentRejectionReason !== null
+        paymentRejectionReason !== undefined
       ) {
-        const reason =
-          String(
+        fields.push(
+          `manual_payment_rejection_reason = $${parameterIndex}`
+        );
+
+        values.push(
+          cleanValue(
             paymentRejectionReason
-          ).trim();
+          )
+        );
 
-        if (reason.length > 0) {
-          fields.push(
-            `manual_payment_rejection_reason = $${parameterIndex}`
-          );
-
-          values.push(reason);
-
-          parameterIndex++;
-        }
+        parameterIndex++;
       }
 
       fields.push(
@@ -738,7 +780,7 @@ export async function PATCH(
     }
 
     /* =====================================================
-       PAYMENT MOVED BACK TO PENDING
+       PAYMENT RESET TO PENDING
     ===================================================== */
 
     if (paymentStatus === 'Pending') {
@@ -764,45 +806,55 @@ export async function PATCH(
     }
 
     /* =====================================================
-       APPLICATION APPROVED
+       PAYMENT AWAITING APPROVAL
     ===================================================== */
 
-    if (applicationStatus === 'Approved') {
+    if (
+      paymentStatus === 'Awaiting Approval'
+    ) {
       fields.push(
-        `approved_at = NOW()`
+        `manual_payment_verified_at = NULL`
       );
 
       fields.push(
-        `rejection_reason = NULL`
+        `manual_payment_verified_by = NULL`
+      );
+
+      fields.push(
+        `payment_verified_at = NULL`
+      );
+
+      fields.push(
+        `paid_at = NULL`
       );
     }
 
     /* =====================================================
-       APPLICATION REJECTED
+       NOTHING TO UPDATE
     ===================================================== */
 
-    if (applicationStatus === 'Rejected') {
-      if (
-        applicationRejectionReason !==
-          undefined &&
-        applicationRejectionReason !== null
-      ) {
-        const reason =
-          String(
-            applicationRejectionReason
-          ).trim();
-
-        if (reason.length > 0) {
-          fields.push(
-            `rejection_reason = $${parameterIndex}`
-          );
-
-          values.push(reason);
-
-          parameterIndex++;
-        }
-      }
+    if (fields.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'No editable fields were provided.',
+        },
+        { status: 400 }
+      );
     }
+
+    /* =====================================================
+       UPDATED AT
+
+       This is included explicitly so every edit updates
+       the timestamp even if the database does not have a
+       trigger.
+    ===================================================== */
+
+    fields.push(
+      `updated_at = NOW()`
+    );
 
     /* =====================================================
        APPLICATION ID
@@ -811,7 +863,7 @@ export async function PATCH(
     values.push(id);
 
     /* =====================================================
-       UPDATE DATABASE
+       EXECUTE UPDATE
     ===================================================== */
 
     const result = await pool.query(
@@ -823,89 +875,7 @@ export async function PATCH(
 
         WHERE id = $${parameterIndex}
 
-        RETURNING
-          id,
-          application_number,
-
-          surname,
-          middle_name,
-          first_name,
-
-          date_of_birth,
-          gender,
-          nationality,
-          country,
-          id_passport_number,
-          marital_status,
-
-          postal_address,
-          postal_code,
-          town,
-          county,
-          mobile,
-          email,
-
-          kcse_index,
-          kcse_year,
-          kcse_mean_grade,
-          english_grade,
-          kiswahili_grade,
-          biology_grade,
-          chemistry_grade,
-          physics_grade,
-          mathematics_grade,
-          previous_institution,
-          highest_qualification,
-
-          course,
-          intake,
-
-          sponsor_type,
-          sponsor_name,
-          sponsor_relationship,
-          sponsor_mobile,
-          sponsor_email,
-
-          guardian_name,
-          guardian_relationship,
-          guardian_mobile,
-          guardian_email,
-
-          id_document,
-          kcse_certificate,
-          passport_photo,
-
-          declaration,
-
-          application_fee,
-
-          payment_status,
-
-          manual_mpesa_code,
-          manual_mpesa_phone,
-          manual_payment_submitted_at,
-          manual_payment_verified_at,
-          manual_payment_verified_by,
-          manual_payment_rejection_reason,
-
-          mpesa_transaction_code,
-          mpesa_receipt_number,
-          mpesa_phone_number,
-          mpesa_transaction_date,
-          mpesa_amount,
-          paid_at,
-
-          payment_receipt_number,
-          payment_verified_at,
-
-          application_status,
-          approved_at,
-          rejection_reason,
-
-          admission_number,
-
-          created_at,
-          updated_at
+        RETURNING *
       `,
       values
     );
@@ -932,18 +902,19 @@ export async function PATCH(
        ADMIN LOGGING
     ===================================================== */
 
+    console.log(
+      `Admin ${admin.email} updated application #${id}`
+    );
+
     if (applicationStatus !== undefined) {
       console.log(
-        `Admin ${admin.email} changed application #${id} status to ${applicationStatus}`
+        `Application #${id} status changed to ${applicationStatus}`
       );
     }
 
     if (paymentStatus !== undefined) {
       console.log(
-        `Admin ${admin.email} changed payment status for application #${id} to ${paymentStatus}. Manual M-Pesa code: ${
-          existingApplication.manual_mpesa_code ||
-          'NONE'
-        }`
+        `Application #${id} payment status changed to ${paymentStatus}`
       );
     }
 
@@ -985,7 +956,7 @@ export async function PATCH(
     }
 
     /* =====================================================
-       RESPONSE
+       RETURN UPDATED APPLICATION
     ===================================================== */
 
     return NextResponse.json({
@@ -995,6 +966,34 @@ export async function PATCH(
 
       application: {
         ...updatedApplication,
+
+        manualMpesaCode:
+          updatedApplication.manual_mpesa_code ||
+          null,
+
+        manualMpesaPhone:
+          updatedApplication.manual_mpesa_phone ||
+          null,
+
+        manualPaymentSubmittedAt:
+          updatedApplication
+            .manual_payment_submitted_at ||
+          null,
+
+        manualPaymentVerifiedAt:
+          updatedApplication
+            .manual_payment_verified_at ||
+          null,
+
+        manualPaymentVerifiedBy:
+          updatedApplication
+            .manual_payment_verified_by ||
+          null,
+
+        manualPaymentRejectionReason:
+          updatedApplication
+            .manual_payment_rejection_reason ||
+          null,
 
         manualMpesaPayment: {
           code:
@@ -1028,14 +1027,36 @@ export async function PATCH(
             null,
 
           status:
-            updatedApplication
-              .payment_status,
+            updatedApplication.payment_status,
 
           submitted:
             Boolean(
               updatedApplication
                 .manual_mpesa_code
             ),
+
+          awaitingApproval:
+            String(
+              updatedApplication.payment_status ||
+                ''
+            )
+              .toLowerCase()
+              .replace(/[\s-]+/g, '_') ===
+            'awaiting_approval',
+
+          approved:
+            ['paid', 'approved', 'verified'].includes(
+              String(
+                updatedApplication.payment_status ||
+                  ''
+              ).toLowerCase()
+            ),
+
+          rejected:
+            String(
+              updatedApplication.payment_status ||
+                ''
+            ).toLowerCase() === 'rejected',
         },
       },
     });
@@ -1058,3 +1079,171 @@ export async function PATCH(
   }
 }
 
+/* =========================================================
+   DELETE APPLICATION
+========================================================= */
+
+export async function DELETE(
+  request: Request,
+  context: RouteContext
+) {
+  try {
+    const admin = requireAdmin();
+
+    /* =====================================================
+       ADMIN AUTHENTICATION
+    ===================================================== */
+
+    if (!admin) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Unauthorized.',
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       GET ID
+    ===================================================== */
+
+    const { id: idParam } = await context.params;
+
+    const id = Number(idParam);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid application ID.',
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =====================================================
+       CHECK APPLICATION
+    ===================================================== */
+
+    const existingResult = await pool.query(
+      `
+        SELECT
+          id,
+          application_number,
+          first_name,
+          middle_name,
+          surname,
+          application_status,
+          payment_status
+
+        FROM applications
+
+        WHERE id = $1
+
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Application not found.',
+        },
+        { status: 404 }
+      );
+    }
+
+    const application =
+      existingResult.rows[0];
+
+    /* =====================================================
+       DELETE
+    ===================================================== */
+
+    await pool.query(
+      `
+        DELETE FROM applications
+
+        WHERE id = $1
+      `,
+      [id]
+    );
+
+    /* =====================================================
+       LOG
+    ===================================================== */
+
+    console.log(
+      `Admin ${admin.email} deleted application #${id} (${application.application_number})`
+    );
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
+
+    return NextResponse.json({
+      success: true,
+
+      message:
+        'Application deleted successfully.',
+
+      application: {
+        id: application.id,
+
+        application_number:
+          application.application_number,
+
+        applicant_name: [
+          application.first_name,
+          application.middle_name,
+          application.surname,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      },
+    });
+  } catch (error) {
+    console.error(
+      'DELETE ADMIN APPLICATION ERROR:',
+      error
+    );
+
+    /* =====================================================
+       FOREIGN KEY ERROR
+    ===================================================== */
+
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === '23503'
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'This application cannot be deleted because it has related records in the system. Remove or handle the related records first.',
+        },
+        { status: 409 }
+      );
+    }
+
+    /* =====================================================
+       GENERAL ERROR
+    ===================================================== */
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Unable to delete application.',
+      },
+      { status: 500 }
+    );
+  }
+}

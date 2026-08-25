@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -95,13 +94,6 @@ export async function GET(request: Request) {
 
     /* =====================================================
        APPLICATION STATUS FILTER
-
-       Case-insensitive so both:
-       Pending / pending
-       Approved / approved
-       Rejected / rejected
-
-       work correctly.
     ===================================================== */
 
     if (status) {
@@ -116,13 +108,6 @@ export async function GET(request: Request) {
 
     /* =====================================================
        PAYMENT STATUS FILTER
-
-       Supports:
-       paid
-       Paid
-       awaiting_approval
-       pending
-       unpaid
     ===================================================== */
 
     if (paymentStatus) {
@@ -244,9 +229,6 @@ export async function GET(request: Request) {
 
     /* =====================================================
        STATISTICS QUERY
-
-       IMPORTANT:
-       All status comparisons are now case-insensitive.
     ===================================================== */
 
     const statisticsQuery = `
@@ -418,3 +400,521 @@ export async function GET(request: Request) {
   }
 }
 
+/* =========================================================
+   PUT — EDIT ADMIN APPLICATION
+========================================================= */
+
+export async function PUT(request: Request) {
+  try {
+    /* =====================================================
+       ADMIN AUTHENTICATION
+    ===================================================== */
+
+    const admin = requireAdmin();
+
+    if (!admin) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Unauthorized.',
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       READ REQUEST BODY
+    ===================================================== */
+
+    const body = await request.json();
+
+    const id = Number(body.id);
+
+    if (!id || Number.isNaN(id)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Valid application ID is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =====================================================
+       ALLOWED FIELDS
+       
+       application_number and id are intentionally NOT
+       editable.
+    ===================================================== */
+
+    const allowedFields = [
+      /* =============================================
+         PERSONAL INFORMATION
+      ============================================= */
+
+      'surname',
+      'middle_name',
+      'first_name',
+      'date_of_birth',
+      'gender',
+      'nationality',
+      'country',
+      'id_passport_number',
+      'marital_status',
+
+      /* =============================================
+         CONTACT INFORMATION
+      ============================================= */
+
+      'postal_address',
+      'postal_code',
+      'town',
+      'county',
+      'mobile',
+      'email',
+
+      /* =============================================
+         ACADEMIC INFORMATION
+      ============================================= */
+
+      'kcse_index',
+      'kcse_year',
+      'kcse_mean_grade',
+      'english_grade',
+      'kiswahili_grade',
+      'biology_grade',
+      'chemistry_grade',
+      'physics_grade',
+      'mathematics_grade',
+      'previous_institution',
+      'highest_qualification',
+
+      /* =============================================
+         COURSE
+      ============================================= */
+
+      'course',
+      'intake',
+
+      /* =============================================
+         SPONSOR
+      ============================================= */
+
+      'sponsor_type',
+      'sponsor_name',
+      'sponsor_relationship',
+      'sponsor_mobile',
+      'sponsor_email',
+
+      /* =============================================
+         GUARDIAN
+      ============================================= */
+
+      'guardian_name',
+      'guardian_relationship',
+      'guardian_mobile',
+      'guardian_email',
+
+      /* =============================================
+         DOCUMENTS
+      ============================================= */
+
+      'id_document',
+      'kcse_certificate',
+      'passport_photo',
+
+      /* =============================================
+         DECLARATION
+      ============================================= */
+
+      'declaration',
+
+      /* =============================================
+         APPLICATION FEE
+      ============================================= */
+
+      'application_fee',
+
+      /* =============================================
+         APPLICATION STATUS
+      ============================================= */
+
+      'application_status',
+
+      /* =============================================
+         MANUAL PAYMENT
+      ============================================= */
+
+      'payment_status',
+      'manual_mpesa_code',
+      'manual_mpesa_phone',
+      'manual_payment_submitted_at',
+
+      /* =============================================
+         EXISTING M-PESA FIELDS
+      ============================================= */
+
+      'mpesa_transaction_code',
+      'mpesa_phone',
+      'payment_submitted_at',
+    ];
+
+    /* =====================================================
+       BUILD UPDATE
+    ===================================================== */
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    let parameterIndex = 1;
+
+    for (const field of allowedFields) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          body,
+          field
+        )
+      ) {
+        updates.push(
+          `${field} = $${parameterIndex}`
+        );
+
+        /*
+         * Empty strings are converted to NULL.
+         * This makes the database cleaner and prevents
+         * empty values from being stored unnecessarily.
+         */
+        values.push(
+          body[field] === ''
+            ? null
+            : body[field]
+        );
+
+        parameterIndex++;
+      }
+    }
+
+    /* =====================================================
+       NOTHING TO UPDATE
+    ===================================================== */
+
+    if (updates.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'No fields provided for update.',
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /* =====================================================
+       NORMALIZE APPLICATION STATUS
+    ===================================================== */
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'application_status'
+      )
+    ) {
+      const statusIndex =
+        allowedFields.indexOf(
+          'application_status'
+        );
+
+      if (statusIndex !== -1) {
+        const updatePosition =
+          updates.findIndex((update) =>
+            update.startsWith(
+              'application_status ='
+            )
+          );
+
+        if (updatePosition !== -1) {
+          values[updatePosition] =
+            body.application_status
+              ?.toString()
+              .trim()
+              .toLowerCase() || null;
+        }
+      }
+    }
+
+    /* =====================================================
+       NORMALIZE PAYMENT STATUS
+    ===================================================== */
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'payment_status'
+      )
+    ) {
+      const updatePosition =
+        updates.findIndex((update) =>
+          update.startsWith(
+            'payment_status ='
+          )
+        );
+
+      if (updatePosition !== -1) {
+        values[updatePosition] =
+          body.payment_status
+            ?.toString()
+            .trim()
+            .toLowerCase() || null;
+      }
+    }
+
+    /* =====================================================
+       APPLICATION FEE
+    ===================================================== */
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'application_fee'
+      )
+    ) {
+      const updatePosition =
+        updates.findIndex((update) =>
+          update.startsWith(
+            'application_fee ='
+          )
+        );
+
+      if (updatePosition !== -1) {
+        const fee =
+          body.application_fee === null ||
+          body.application_fee === ''
+            ? null
+            : Number(body.application_fee);
+
+        if (
+          fee !== null &&
+          Number.isNaN(fee)
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                'Application fee must be a valid number.',
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
+        values[updatePosition] = fee;
+      }
+    }
+
+    /* =====================================================
+       UPDATE DATABASE
+    ===================================================== */
+
+    const query = `
+      UPDATE applications
+
+      SET
+        ${updates.join(', ')}
+
+      WHERE id = $${parameterIndex}
+
+      RETURNING
+        id,
+        application_number,
+
+        surname,
+        middle_name,
+        first_name,
+
+        date_of_birth,
+        gender,
+        nationality,
+        country,
+        id_passport_number,
+        marital_status,
+
+        postal_address,
+        postal_code,
+        town,
+        county,
+        mobile,
+        email,
+
+        kcse_index,
+        kcse_year,
+        kcse_mean_grade,
+        english_grade,
+        kiswahili_grade,
+        biology_grade,
+        chemistry_grade,
+        physics_grade,
+        mathematics_grade,
+        previous_institution,
+        highest_qualification,
+
+        course,
+        intake,
+
+        sponsor_type,
+        sponsor_name,
+        sponsor_relationship,
+        sponsor_mobile,
+        sponsor_email,
+
+        guardian_name,
+        guardian_relationship,
+        guardian_mobile,
+        guardian_email,
+
+        id_document,
+        kcse_certificate,
+        passport_photo,
+
+        declaration,
+
+        application_fee,
+
+        LOWER(
+          COALESCE(
+            payment_status,
+            'pending'
+          )
+        ) AS payment_status,
+
+        LOWER(
+          COALESCE(
+            application_status,
+            'pending'
+          )
+        ) AS application_status,
+
+        manual_mpesa_code,
+        manual_mpesa_phone,
+        manual_payment_submitted_at,
+
+        mpesa_transaction_code,
+        mpesa_phone,
+        payment_submitted_at,
+
+        created_at
+    `;
+
+    /* =====================================================
+       APPLICATION ID
+    ===================================================== */
+
+    values.push(id);
+
+    /* =====================================================
+       EXECUTE UPDATE
+    ===================================================== */
+
+    const result = await pool.query(
+      query,
+      values
+    );
+
+    /* =====================================================
+       APPLICATION NOT FOUND
+    ===================================================== */
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Application not found.',
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    /* =====================================================
+       NORMALIZE UPDATED APPLICATION
+    ===================================================== */
+
+    const application = {
+      ...result.rows[0],
+
+      application_fee:
+        Number(
+          result.rows[0]
+            .application_fee || 0
+        ),
+
+      payment_status:
+        String(
+          result.rows[0]
+            .payment_status ||
+            'pending'
+        )
+          .trim()
+          .toLowerCase(),
+
+      application_status:
+        String(
+          result.rows[0]
+            .application_status ||
+            'pending'
+        )
+          .trim()
+          .toLowerCase(),
+
+      manual_mpesa_code:
+        result.rows[0]
+          .manual_mpesa_code ||
+        null,
+
+      manual_mpesa_phone:
+        result.rows[0]
+          .manual_mpesa_phone ||
+        null,
+
+      manual_payment_submitted_at:
+        result.rows[0]
+          .manual_payment_submitted_at ||
+        null,
+    };
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
+
+    return NextResponse.json({
+      success: true,
+
+      message:
+        'Application updated successfully.',
+
+      application,
+    });
+  } catch (error) {
+    console.error(
+      'ADMIN EDIT APPLICATION ERROR:',
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Unable to update application.',
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}

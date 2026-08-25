@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -11,13 +10,16 @@ import {
 import Link from 'next/link';
 
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
   CreditCard,
+  Edit3,
   Loader2,
   RefreshCw,
   Search,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 
@@ -82,8 +84,7 @@ type Application = {
   application_fee: number;
 
   /*
-   * IMPORTANT:
-   * Database values are expected to be lowercase:
+   * Expected database values:
    *
    * unpaid
    * payment_pending
@@ -93,7 +94,7 @@ type Application = {
   payment_status: string;
 
   /*
-   * Database values:
+   * Expected database values:
    *
    * Pending
    * Approved
@@ -238,7 +239,7 @@ function PaymentStatus({
   }
 
   /*
-   * AWAITING ADMIN APPROVAL
+   * AWAITING APPROVAL
    */
   if (
     normalized === 'awaiting_approval'
@@ -304,6 +305,28 @@ export default function ApplicationsPage() {
 
   const [error, setError] =
     useState('');
+
+  const [deleteError, setDeleteError] =
+    useState('');
+
+  const [deletingId, setDeletingId] =
+    useState<number | null>(null);
+
+  /* =======================================================
+     COURSE LIST
+  ======================================================= */
+
+  const courses = useMemo(
+    () => [
+      'EMT',
+      'Diploma in Paramedicine',
+      'Safe Phlebotomy',
+      'German Language',
+      'Caregiving Level 4',
+      'Dialysis Technology',
+    ],
+    []
+  );
 
   /* =======================================================
      LOAD APPLICATIONS
@@ -435,20 +458,86 @@ export default function ApplicationsPage() {
   }, [loadApplications]);
 
   /* =======================================================
-     COURSE LIST
+     DELETE APPLICATION
   ======================================================= */
 
-  const courses = useMemo(
-    () => [
-      'EMT',
-      'Diploma in Paramedicine',
-      'Safe Phlebotomy',
-      'German Language',
-      'Caregiving Level 4',
-      'Dialysis Technology',
-    ],
-    []
-  );
+  async function deleteApplication(
+    application: Application
+  ) {
+    const applicantName =
+      getApplicantName(application);
+
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to permanently delete this application?\n\nApplicant: ${applicantName}\nApplication Number: ${application.application_number}\n\nThis action cannot be undone.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(application.id);
+      setDeleteError('');
+
+      const response =
+        await fetch(
+          `/api/admin/applications/${application.id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        throw new Error(
+          data.message ||
+            'Unable to delete application.'
+        );
+      }
+
+      /*
+       * Remove the application
+       * immediately from the UI.
+       */
+      setApplications((current) =>
+        current.filter(
+          (item) =>
+            item.id !== application.id
+        )
+      );
+
+      /*
+       * Refresh statistics and
+       * make sure the server state
+       * is reflected in the dashboard.
+       */
+      await loadApplications();
+
+    } catch (err) {
+      console.error(
+        'DELETE APPLICATION ERROR:',
+        err
+      );
+
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to delete application.'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   /* =======================================================
      CLEAR FILTERS
@@ -482,6 +571,7 @@ export default function ApplicationsPage() {
         ================================================== */}
 
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-gold">
               Admissions
@@ -492,9 +582,9 @@ export default function ApplicationsPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Review and manage applications submitted
-              through the Shifah Medical Training College
-              website.
+              Review, edit and manage applications
+              submitted through the Shifah Medical
+              Training College website.
             </p>
           </div>
 
@@ -514,6 +604,7 @@ export default function ApplicationsPage() {
 
             Refresh
           </button>
+
         </div>
 
         {/* =================================================
@@ -522,8 +613,11 @@ export default function ApplicationsPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
+          {/* TOTAL */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center justify-between">
+
               <div>
                 <p className="text-sm font-medium text-slate-500">
                   Total Applications
@@ -537,11 +631,15 @@ export default function ApplicationsPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-green/10">
                 <ClipboardList className="h-5 w-5 text-brand-green" />
               </div>
+
             </div>
           </div>
 
+          {/* PENDING */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center justify-between">
+
               <div>
                 <p className="text-sm font-medium text-slate-500">
                   Pending Review
@@ -555,11 +653,15 @@ export default function ApplicationsPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50">
                 <ClipboardList className="h-5 w-5 text-amber-600" />
               </div>
+
             </div>
           </div>
 
+          {/* APPROVED */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center justify-between">
+
               <div>
                 <p className="text-sm font-medium text-slate-500">
                   Approved
@@ -573,11 +675,15 @@ export default function ApplicationsPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               </div>
+
             </div>
           </div>
 
+          {/* PAID */}
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center justify-between">
+
               <div>
                 <p className="text-sm font-medium text-slate-500">
                   Application Fees Paid
@@ -591,6 +697,7 @@ export default function ApplicationsPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-gold/15">
                 <CreditCard className="h-5 w-5 text-brand-gold" />
               </div>
+
             </div>
           </div>
 
@@ -601,9 +708,13 @@ export default function ApplicationsPage() {
         ================================================== */}
 
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+
           <div className="grid gap-4 lg:grid-cols-12">
 
+            {/* SEARCH */}
+
             <div className="lg:col-span-5">
+
               <label
                 htmlFor="application-search"
                 className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500"
@@ -612,6 +723,7 @@ export default function ApplicationsPage() {
               </label>
 
               <div className="relative">
+
                 <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                 <input
@@ -626,10 +738,15 @@ export default function ApplicationsPage() {
                   placeholder="Application number, name, phone or email..."
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                 />
+
               </div>
+
             </div>
 
+            {/* COURSE */}
+
             <div className="lg:col-span-3">
+
               <label
                 htmlFor="course-filter"
                 className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500"
@@ -647,6 +764,7 @@ export default function ApplicationsPage() {
                 }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
               >
+
                 <option value="">
                   All Courses
                 </option>
@@ -661,10 +779,15 @@ export default function ApplicationsPage() {
                     </option>
                   )
                 )}
+
               </select>
+
             </div>
 
+            {/* APPLICATION STATUS */}
+
             <div className="lg:col-span-2">
+
               <label
                 htmlFor="status-filter"
                 className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500"
@@ -682,6 +805,7 @@ export default function ApplicationsPage() {
                 }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
               >
+
                 <option value="">
                   All Statuses
                 </option>
@@ -697,10 +821,15 @@ export default function ApplicationsPage() {
                 <option value="Rejected">
                   Rejected
                 </option>
+
               </select>
+
             </div>
 
+            {/* PAYMENT */}
+
             <div className="lg:col-span-2">
+
               <label
                 htmlFor="payment-filter"
                 className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500"
@@ -718,6 +847,7 @@ export default function ApplicationsPage() {
                 }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
               >
+
                 <option value="">
                   All
                 </option>
@@ -737,13 +867,18 @@ export default function ApplicationsPage() {
                 <option value="unpaid">
                   Unpaid
                 </option>
+
               </select>
+
             </div>
 
           </div>
 
+          {/* CLEAR FILTERS */}
+
           {hasFilters && (
             <div className="mt-4 flex justify-end">
+
               <button
                 type="button"
                 onClick={clearFilters}
@@ -751,17 +886,64 @@ export default function ApplicationsPage() {
               >
                 Clear filters
               </button>
+
             </div>
           )}
+
         </div>
 
         {/* =================================================
-            ERROR
+            LOAD ERROR
         ================================================== */}
 
         {error && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-            {error}
+          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="font-bold">
+                Unable to load applications
+              </p>
+
+              <p className="mt-1">
+                {error}
+              </p>
+            </div>
+
+          </div>
+        )}
+
+        {/* =================================================
+            DELETE ERROR
+        ================================================== */}
+
+        {deleteError && (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="font-bold">
+                Unable to delete application
+              </p>
+
+              <p className="mt-1">
+                {deleteError}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setDeleteError('')
+              }
+              className="ml-auto shrink-0 text-red-500 transition hover:text-red-700"
+              aria-label="Close error"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+
           </div>
         )}
 
@@ -771,8 +953,12 @@ export default function ApplicationsPage() {
 
         <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
 
+          {/* TABLE HEADER */}
+
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+
             <div>
+
               <h2 className="font-bold text-brand-dark">
                 Submitted Applications
               </h2>
@@ -784,22 +970,40 @@ export default function ApplicationsPage() {
                   ? ''
                   : 's'} displayed
               </p>
+
             </div>
+
           </div>
+
+          {/* =================================================
+              LOADING
+          ================================================== */}
 
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center">
+
               <div className="text-center">
+
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-green" />
 
                 <p className="mt-3 text-sm font-medium text-slate-500">
                   Loading applications...
                 </p>
+
               </div>
+
             </div>
+
           ) : applications.length === 0 ? (
+
+            /* =================================================
+               EMPTY
+            ================================================== */
+
             <div className="flex min-h-[300px] items-center justify-center px-6">
+
               <div className="text-center">
+
                 <ClipboardList className="mx-auto h-12 w-12 text-slate-200" />
 
                 <h3 className="mt-4 text-sm font-bold text-brand-dark">
@@ -810,13 +1014,33 @@ export default function ApplicationsPage() {
                   No applications match your current
                   search or filters.
                 </p>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 text-sm font-bold text-brand-green hover:text-brand-dark"
+                  >
+                    Clear filters
+                  </button>
+                )}
+
               </div>
+
             </div>
+
           ) : (
+
+            /* =================================================
+               TABLE
+            ================================================== */
+
             <div className="overflow-x-auto">
-              <table className="min-w-[1100px] w-full">
+
+              <table className="min-w-[1250px] w-full">
 
                 <thead>
+
                   <tr className="border-b border-slate-200 bg-slate-50">
 
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -844,10 +1068,11 @@ export default function ApplicationsPage() {
                     </th>
 
                     <th className="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Action
+                      Actions
                     </th>
 
                   </tr>
+
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
@@ -864,13 +1089,28 @@ export default function ApplicationsPage() {
                         normalizedPayment ===
                         'paid';
 
+                      const isDeleting =
+                        deletingId ===
+                        application.id;
+
                       return (
                         <tr
-                          key={application.id}
-                          className="transition hover:bg-brand-cream/40"
+                          key={
+                            application.id
+                          }
+                          className={`transition hover:bg-brand-cream/40 ${
+                            isDeleting
+                              ? 'opacity-60'
+                              : ''
+                          }`}
                         >
 
+                          {/* =================================================
+                              APPLICATION
+                          ================================================== */}
+
                           <td className="px-5 py-4">
+
                             <p className="text-sm font-bold text-brand-green">
                               {
                                 application.application_number
@@ -878,11 +1118,20 @@ export default function ApplicationsPage() {
                             </p>
 
                             <p className="mt-1 text-xs text-slate-400">
-                              ID #{application.id}
+                              ID #
+                              {
+                                application.id
+                              }
                             </p>
+
                           </td>
 
+                          {/* =================================================
+                              APPLICANT
+                          ================================================== */}
+
                           <td className="px-5 py-4">
+
                             <p className="text-sm font-semibold text-brand-dark">
                               {getApplicantName(
                                 application
@@ -890,25 +1139,45 @@ export default function ApplicationsPage() {
                             </p>
 
                             <p className="mt-1 text-xs text-slate-500">
-                              {application.mobile}
+                              {
+                                application.mobile
+                              }
                             </p>
 
                             <p className="mt-0.5 text-xs text-slate-400">
-                              {application.email}
+                              {
+                                application.email
+                              }
                             </p>
+
                           </td>
 
+                          {/* =================================================
+                              COURSE
+                          ================================================== */}
+
                           <td className="px-5 py-4">
+
                             <p className="max-w-[220px] text-sm font-medium text-slate-700">
-                              {application.course}
+                              {
+                                application.course
+                              }
                             </p>
 
                             <p className="mt-1 text-xs text-slate-400">
-                              {application.intake}
+                              {
+                                application.intake
+                              }
                             </p>
+
                           </td>
 
+                          {/* =================================================
+                              PAYMENT
+                          ================================================== */}
+
                           <td className="px-5 py-4">
+
                             <PaymentStatus
                               status={
                                 application.payment_status
@@ -926,15 +1195,26 @@ export default function ApplicationsPage() {
                                 Payment confirmed
                               </p>
                             )}
+
                           </td>
 
+                          {/* =================================================
+                              APPLICATION STATUS
+                          ================================================== */}
+
                           <td className="px-5 py-4">
+
                             <ApplicationStatus
                               status={
                                 application.application_status
                               }
                             />
+
                           </td>
+
+                          {/* =================================================
+                              DATE
+                          ================================================== */}
 
                           <td className="px-5 py-4 text-sm text-slate-500">
                             {formatDate(
@@ -942,15 +1222,62 @@ export default function ApplicationsPage() {
                             )}
                           </td>
 
-                          <td className="px-5 py-4 text-right">
-                            <Link
-                              href={`/admin/dashboard/applications/${application.id}`}
-                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-brand-green transition hover:border-brand-green/30 hover:bg-brand-green/5"
-                            >
-                              View
+                          {/* =================================================
+                              ACTIONS
+                          ================================================== */}
 
-                              <ChevronRight className="h-3.5 w-3.5" />
-                            </Link>
+                          <td className="px-5 py-4">
+
+                            <div className="flex items-center justify-end gap-2">
+
+                              {/* VIEW */}
+
+                              <Link
+                                href={`/admin/dashboard/applications/${application.id}`}
+                                title="View application"
+                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-brand-green transition hover:border-brand-green/30 hover:bg-brand-green/5"
+                              >
+                                View
+
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              </Link>
+
+                              {/* EDIT */}
+
+                              <Link
+                                href={`/admin/dashboard/applications/${application.id}/edit`}
+                                title="Edit application"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600 transition hover:border-blue-300 hover:bg-blue-100"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Link>
+
+                              {/* DELETE */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteApplication(
+                                    application
+                                  )
+                                }
+                                disabled={
+                                  isDeleting
+                                }
+                                title="Delete application"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+
+                                {isDeleting ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+
+                              </button>
+
+                            </div>
+
                           </td>
 
                         </tr>
@@ -959,13 +1286,15 @@ export default function ApplicationsPage() {
                   )}
 
                 </tbody>
+
               </table>
+
             </div>
           )}
+
         </div>
 
       </div>
     </div>
   );
 }
-
