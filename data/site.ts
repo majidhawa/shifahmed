@@ -20,7 +20,7 @@ export const site = {
   name: 'Shifah Medical Training College',
   shortName: 'Shifah Medical College',
   tagline: 'Health through innovation and research',
-  intake: 'July to September 2026 Intake Ongoing',
+  intake: 'September 2026 Intake ongoing',
   location: 'Ambwere Plaza, 2nd Floor, Kitale Town',
   phone: '+254 142 068933',
   whatsapp: '+254 794882948',
@@ -44,7 +44,7 @@ export const site = {
   ],
   marqueeItems: [
     'May 2026 intake ongoing',
-    'Applications now open',
+    'Applications ongoing, just 3 days to Go',
     'Caregiving, Safe Phlebotomy & Dialysis Technology available',
     'Practical training with a strong professional focus'
   ],
