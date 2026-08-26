@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   CheckCircle2,
+  Download,
   ExternalLink,
   FileText,
   Loader2,
@@ -756,22 +757,31 @@ export default function ApplicationDetailsPage() {
 
                 </div>
 
-                <div className="mt-6">
+               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+  {/* Generate Admission Letter */}
+  <a
+    href={`/api/admin/admissions/${admission.id}/letter`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark"
+  >
+    <FileText className="h-4 w-4" />
+    Generate Admission Letter
+  </a>
 
-                 <a
-  href={`/api/admin/admissions/${admission.id}/letter`}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark"
->
-  <FileText className="h-4 w-4" />
-
-  Generate Admission Letter
-</a>
-
+  {/* Download Application Form */}
+  <a
+    href={`/api/admin/applications/${application.id}/pdf`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-green bg-white px-5 py-3 text-sm font-bold text-brand-green transition hover:bg-brand-green/5"
+  >
+    <Download className="h-4 w-4" />
+    Download Application Form
+  </a>
+</div>
                 </div>
 
-              </div>
 
             ) : (
 
