@@ -28,7 +28,7 @@ type Field = {
 ========================================================= */
 
 /**
- * Convert an unknown value into a safe display string.
+ * Safely convert a value to a printable string.
  */
 function displayValue(value: unknown): string {
   if (
@@ -43,7 +43,7 @@ function displayValue(value: unknown): string {
 }
 
 /**
- * Format database dates for Kenya.
+ * Format database date values for Kenya.
  */
 function formatDate(value: unknown): string {
   if (!value) {
@@ -88,7 +88,7 @@ function safeFileName(value: unknown): string {
 }
 
 /**
- * Determine whether a URL is an image URL.
+ * Check whether a string is an HTTP/HTTPS URL.
  */
 function isHttpUrl(value: string): boolean {
   return (
@@ -98,20 +98,20 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
- * Load an image from the value stored in the database.
+ * Load passport photo from database value.
  *
- * Supported formats:
+ * Supported:
  *
- * 1. Base64 data URL
+ * 1. Base64:
  *    data:image/jpeg;base64,...
  *
- * 2. HTTP/HTTPS URL
+ * 2. Remote URL:
  *    https://...
  *
- * 3. Public/local path
+ * 3. Public path:
  *    /uploads/applications/photo.jpg
  *
- * 4. Relative filesystem path
+ * 4. Relative path:
  *    uploads/applications/photo.jpg
  */
 async function getImageBuffer(
@@ -132,7 +132,7 @@ async function getImageBuffer(
 
   try {
     /* =====================================================
-       BASE64 DATA URL
+       BASE64 IMAGE
     ===================================================== */
 
     if (image.startsWith('data:image/')) {
@@ -156,7 +156,7 @@ async function getImageBuffer(
     }
 
     /* =====================================================
-       HTTP / HTTPS URL
+       HTTP / HTTPS IMAGE
     ===================================================== */
 
     if (isHttpUrl(image)) {
@@ -174,15 +174,7 @@ async function getImageBuffer(
       }
 
       const contentType =
-        response.headers.get(
-          'content-type'
-        );
-
-      /*
-       * Do not strictly reject the image if the
-       * storage provider does not return a perfect
-       * image content type.
-       */
+        response.headers.get('content-type');
 
       if (
         contentType &&
@@ -206,11 +198,11 @@ async function getImageBuffer(
     let filePath = image;
 
     /*
-     * Database contains:
+     * Example:
      *
      * /uploads/applications/photo.jpg
      *
-     * Convert it to:
+     * becomes:
      *
      * <project>/public/uploads/applications/photo.jpg
      */
@@ -224,7 +216,7 @@ async function getImageBuffer(
     }
 
     /*
-     * Database contains:
+     * Example:
      *
      * uploads/applications/photo.jpg
      */
@@ -407,29 +399,26 @@ export async function GET(
        ASSET PATHS
     ===================================================== */
 
-    const regularFontPath =
-      path.join(
-        process.cwd(),
-        'public',
-        'fonts',
-        'DejaVuSans.ttf'
-      );
+    const regularFontPath = path.join(
+      process.cwd(),
+      'public',
+      'fonts',
+      'DejaVuSans.ttf'
+    );
 
-    const boldFontPath =
-      path.join(
-        process.cwd(),
-        'public',
-        'fonts',
-        'DejaVuSans-Bold.ttf'
-      );
+    const boldFontPath = path.join(
+      process.cwd(),
+      'public',
+      'fonts',
+      'DejaVuSans-Bold.ttf'
+    );
 
-    const logoPath =
-      path.join(
-        process.cwd(),
-        'public',
-        'images',
-        'logo.jpg'
-      );
+    const logoPath = path.join(
+      process.cwd(),
+      'public',
+      'images',
+      'logo.jpg'
+    );
 
     if (!fs.existsSync(regularFontPath)) {
       throw new Error(
@@ -479,7 +468,7 @@ export async function GET(
     };
 
     /* =====================================================
-       DOCUMENT
+       PDF DOCUMENT
     ===================================================== */
 
     const doc = new PDFDocument({
@@ -571,6 +560,10 @@ export async function GET(
     const CONTENT_WIDTH =
       RIGHT - LEFT;
 
+    /*
+     * Header and footer boundaries.
+     */
+
     const HEADER_BOTTOM = 112;
 
     const FOOTER_HEIGHT = 52;
@@ -580,7 +573,7 @@ export async function GET(
     const CONTENT_BOTTOM =
       PAGE_HEIGHT -
       FOOTER_HEIGHT -
-      18;
+      14;
 
     /* =====================================================
        TEXT HELPER
@@ -645,7 +638,7 @@ export async function GET(
 
     const drawHeader = () => {
       /*
-       * Green top strip
+       * Green strip
        */
 
       doc
@@ -658,7 +651,7 @@ export async function GET(
         .fill(COLORS.green);
 
       /*
-       * Gold accent
+       * Gold strip
        */
 
       doc
@@ -682,6 +675,8 @@ export async function GET(
             25,
             {
               fit: [65, 65],
+              align: 'center',
+              valign: 'center',
             }
           );
         } catch (error) {
@@ -753,7 +748,7 @@ export async function GET(
       );
 
       /*
-       * Divider
+       * Header divider
        */
 
       drawLine(
@@ -774,15 +769,15 @@ export async function GET(
       pageNumber: number,
       totalPages: number
     ) => {
-      const y =
+      const footerY =
         PAGE_HEIGHT -
         FOOTER_HEIGHT;
 
       drawLine(
         LEFT,
-        y,
+        footerY,
         RIGHT,
-        y,
+        footerY,
         COLORS.gold,
         0.9
       );
@@ -790,7 +785,7 @@ export async function GET(
       drawText(
         'SHIFAH MEDICAL TRAINING COLLEGE',
         LEFT,
-        y + 8,
+        footerY + 8,
         CONTENT_WIDTH,
         6.5,
         true,
@@ -801,7 +796,7 @@ export async function GET(
       drawText(
         'Health through Innovation & research',
         LEFT,
-        y + 19,
+        footerY + 19,
         CONTENT_WIDTH,
         6,
         false,
@@ -814,7 +809,7 @@ export async function GET(
           application.application_number
         )}  •  Page ${pageNumber} of ${totalPages}`,
         LEFT,
-        y + 30,
+        footerY + 30,
         CONTENT_WIDTH,
         6,
         false,
@@ -863,12 +858,14 @@ export async function GET(
       y: number,
       color = COLORS.deepGreen
     ) => {
+      const height = 27;
+
       doc
         .roundedRect(
           LEFT,
           y,
           CONTENT_WIDTH,
-          27,
+          height,
           4
         )
         .fill(color);
@@ -882,7 +879,7 @@ export async function GET(
           LEFT,
           y,
           5,
-          27
+          height
         )
         .fill(COLORS.gold);
 
@@ -900,12 +897,119 @@ export async function GET(
     };
 
     /* =====================================================
+       THREE COLUMN TABLE
+    ===================================================== */
+
+    const drawThreeColumnTable = (
+      fields: Field[],
+      startY: number,
+      rowHeight = 32
+    ) => {
+      const columnWidth =
+        CONTENT_WIDTH / 3;
+
+      let y = startY;
+
+      for (
+        let i = 0;
+        i < fields.length;
+        i += 3
+      ) {
+        const rowFields =
+          fields.slice(i, i + 3);
+
+        const rowIndex =
+          Math.floor(i / 3);
+
+        const background =
+          rowIndex % 2 === 0
+            ? COLORS.white
+            : COLORS.lighterGray;
+
+        /*
+         * Draw all three cells.
+         */
+
+        for (
+          let column = 0;
+          column < 3;
+          column++
+        ) {
+          const x =
+            LEFT +
+            column *
+              columnWidth;
+
+          doc
+            .rect(
+              x,
+              y,
+              columnWidth,
+              rowHeight
+            )
+            .fill(background);
+
+          doc
+            .rect(
+              x,
+              y,
+              columnWidth,
+              rowHeight
+            )
+            .lineWidth(0.5)
+            .strokeColor(
+              COLORS.border
+            )
+            .stroke();
+        }
+
+        /*
+         * Draw actual fields.
+         */
+
+        rowFields.forEach(
+          (item, column) => {
+            const x =
+              LEFT +
+              column *
+                columnWidth;
+
+            drawText(
+              item.label.toUpperCase(),
+              x + 8,
+              y + 6,
+              columnWidth - 16,
+              5.7,
+              true,
+              COLORS.gray
+            );
+
+            drawText(
+              item.value,
+              x + 8,
+              y + 18,
+              columnWidth - 16,
+              7.2,
+              true,
+              COLORS.black
+            );
+          }
+        );
+
+        y += rowHeight;
+      }
+
+      return y;
+    };
+
+    /* =====================================================
        TWO COLUMN TABLE
     ===================================================== */
 
     const drawTwoColumnTable = (
       fields: Field[],
-      startY: number
+      startY: number,
+      rowHeight = 30
     ) => {
       const labelWidth = 145;
 
@@ -913,12 +1017,10 @@ export async function GET(
         CONTENT_WIDTH -
         labelWidth;
 
-      const rowHeight = 32;
-
       let y = startY;
 
       /*
-       * Header
+       * Table header
        */
 
       doc
@@ -926,16 +1028,16 @@ export async function GET(
           LEFT,
           y,
           CONTENT_WIDTH,
-          24
+          23
         )
         .fill(COLORS.deepGreen);
 
       drawText(
         'FIELD',
         LEFT + 10,
-        y + 7,
+        y + 6,
         labelWidth - 20,
-        6.5,
+        6.3,
         true,
         COLORS.white
       );
@@ -943,9 +1045,9 @@ export async function GET(
       drawText(
         'INFORMATION',
         LEFT + labelWidth + 10,
-        y + 7,
+        y + 6,
         valueWidth - 20,
-        6.5,
+        6.3,
         true,
         COLORS.white
       );
@@ -954,12 +1056,12 @@ export async function GET(
         LEFT + labelWidth,
         y,
         LEFT + labelWidth,
-        y + 24,
+        y + 23,
         COLORS.white,
         0.6
       );
 
-      y += 24;
+      y += 23;
 
       fields.forEach(
         (item, index) => {
@@ -1002,9 +1104,9 @@ export async function GET(
           drawText(
             item.label,
             LEFT + 10,
-            y + 9,
+            y + 8,
             labelWidth - 20,
-            7,
+            6.8,
             true,
             COLORS.gray
           );
@@ -1012,9 +1114,9 @@ export async function GET(
           drawText(
             item.value,
             LEFT + labelWidth + 10,
-            y + 8,
+            y + 7,
             valueWidth - 20,
-            7.5,
+            7.2,
             true,
             COLORS.black
           );
@@ -1022,133 +1124,6 @@ export async function GET(
           y += rowHeight;
         }
       );
-
-      return y;
-    };
-
-    /* =====================================================
-       THREE COLUMN TABLE
-    ===================================================== */
-
-    const drawThreeColumnTable = (
-      fields: Field[],
-      startY: number
-    ) => {
-      const columnWidth =
-        CONTENT_WIDTH / 3;
-
-      const rowHeight = 42;
-
-      let y = startY;
-
-      for (
-        let i = 0;
-        i < fields.length;
-        i += 3
-      ) {
-        const rowFields =
-          fields.slice(i, i + 3);
-
-        rowFields.forEach(
-          (item, column) => {
-            const x =
-              LEFT +
-              column *
-                columnWidth;
-
-            const background =
-              (i / 3) % 2 === 0
-                ? COLORS.white
-                : COLORS.lighterGray;
-
-            doc
-              .rect(
-                x,
-                y,
-                columnWidth,
-                rowHeight
-              )
-              .fill(background);
-
-            doc
-              .rect(
-                x,
-                y,
-                columnWidth,
-                rowHeight
-              )
-              .lineWidth(0.5)
-              .strokeColor(
-                COLORS.border
-              )
-              .stroke();
-
-            drawText(
-              item.label.toUpperCase(),
-              x + 9,
-              y + 7,
-              columnWidth - 18,
-              6,
-              true,
-              COLORS.gray
-            );
-
-            drawText(
-              item.value,
-              x + 9,
-              y + 20,
-              columnWidth - 18,
-              7.5,
-              true,
-              COLORS.black
-            );
-          }
-        );
-
-        /*
-         * Fill missing columns.
-         */
-
-        if (rowFields.length < 3) {
-          for (
-            let column =
-              rowFields.length;
-            column < 3;
-            column++
-          ) {
-            const x =
-              LEFT +
-              column *
-                columnWidth;
-
-            doc
-              .rect(
-                x,
-                y,
-                columnWidth,
-                rowHeight
-              )
-              .fill(
-                COLORS.lighterGray
-              );
-
-            doc
-              .rect(
-                x,
-                y,
-                columnWidth,
-                rowHeight
-              )
-              .lineWidth(0.5)
-              .strokeColor(
-                COLORS.border
-              )
-              .stroke();
-          }
-        }
-
-        y += rowHeight;
-      }
 
       return y;
     };
@@ -1162,7 +1137,8 @@ export async function GET(
       value: unknown,
       x: number,
       y: number,
-      width: number
+      width: number,
+      height = 54
     ) => {
       const normalized =
         String(value || '')
@@ -1207,7 +1183,7 @@ export async function GET(
           x,
           y,
           width,
-          54,
+          height,
           5
         )
         .fill(background);
@@ -1217,7 +1193,7 @@ export async function GET(
           x,
           y,
           width,
-          54,
+          height,
           5
         )
         .lineWidth(0.7)
@@ -1225,6 +1201,10 @@ export async function GET(
           COLORS.border
         )
         .stroke();
+
+      /*
+       * Gold accent.
+       */
 
       doc
         .rect(
@@ -1240,7 +1220,7 @@ export async function GET(
         x + 10,
         y + 10,
         width - 20,
-        6,
+        5.8,
         true,
         COLORS.gray
       );
@@ -1250,7 +1230,7 @@ export async function GET(
         x + 10,
         y + 25,
         width - 20,
-        8.5,
+        8,
         true,
         foreground
       );
@@ -1309,7 +1289,7 @@ export async function GET(
       height: number
     ) => {
       /*
-       * Outer frame
+       * Outer frame.
        */
 
       doc
@@ -1337,7 +1317,7 @@ export async function GET(
         .stroke();
 
       /*
-       * Uploaded photo
+       * Uploaded photo.
        */
 
       if (passportPhotoBuffer) {
@@ -1345,8 +1325,7 @@ export async function GET(
           doc.save();
 
           /*
-           * Clip the photo to the
-           * passport-photo frame.
+           * Clip image to frame.
            */
 
           doc
@@ -1374,10 +1353,6 @@ export async function GET(
           );
 
           doc.restore();
-
-          /*
-           * Photo label
-           */
 
           drawText(
             'PASSPORT PHOTO',
@@ -1422,10 +1397,6 @@ export async function GET(
       width: number,
       height: number
     ) => {
-      /*
-       * Dashed inner border
-       */
-
       doc
         .roundedRect(
           x + 5,
@@ -1489,7 +1460,7 @@ export async function GET(
       y: number,
       width: number
     ) => {
-      const height = 50;
+      const height = 47;
 
       doc
         .roundedRect(
@@ -1516,7 +1487,7 @@ export async function GET(
         .stroke();
 
       /*
-       * Gold accent
+       * Gold accent.
        */
 
       doc
@@ -1533,20 +1504,16 @@ export async function GET(
         x + 9,
         y + 8,
         width - 18,
-        6,
+        5.8,
         true,
         COLORS.gray
       );
 
-      /*
-       * Blank writing area
-       */
-
       drawLine(
         x + 9,
-        y + 36,
+        y + 34,
         x + width - 9,
-        y + 36,
+        y + 34,
         COLORS.border,
         0.7
       );
@@ -1567,16 +1534,16 @@ export async function GET(
       CONTENT_TOP + 48;
 
     /*
-     * Application summary
+     * Application summary.
      */
 
     y =
       drawApplicationSummary(y);
 
-    y += 8;
+    y += 7;
 
     /* =====================================================
-       PERSONAL INFORMATION WITH PHOTO
+       PERSONAL INFORMATION
     ===================================================== */
 
     y =
@@ -1585,27 +1552,22 @@ export async function GET(
         y
       );
 
-    /*
-     * Photo dimensions
-     */
-
     const photoWidth = 82;
     const photoHeight = 104;
 
+    const photoGap = 12;
+
     const photoX =
-      RIGHT - photoWidth - 4;
+      RIGHT -
+      photoWidth -
+      4;
 
     const personalStartY =
       y;
 
     /*
-     * Personal table width.
-     *
-     * Leave room on the right for
-     * the passport photograph.
+     * Table beside passport photo.
      */
-
-    const photoGap = 12;
 
     const personalTableWidth =
       CONTENT_WIDTH -
@@ -1615,63 +1577,57 @@ export async function GET(
     const personalColumnWidth =
       personalTableWidth / 3;
 
-    const personalRowHeight = 42;
+    const personalRowHeight = 40;
 
-    const personalFields: Field[] =
-      [
-        {
-          label: 'Surname',
-          value:
-            application.surname,
-        },
-        {
-          label: 'Middle Name',
-          value:
-            application.middle_name,
-        },
-        {
-          label: 'First Name',
-          value:
-            application.first_name,
-        },
-        {
-          label: 'Date of Birth',
-          value:
-            formatDate(
-              application.date_of_birth
-            ),
-        },
-        {
-          label: 'Gender',
-          value:
-            application.gender,
-        },
-        {
-          label: 'Nationality',
-          value:
-            application.nationality,
-        },
-        {
-          label: 'Country',
-          value:
-            application.country,
-        },
-        {
-          label: 'ID / Passport Number',
-          value:
-            application.id_passport_number,
-        },
-        {
-          label: 'Marital Status',
-          value:
-            application.marital_status,
-        },
-      ];
-
-    /*
-     * Draw personal information
-     * in three columns beside photo.
-     */
+    const personalFields: Field[] = [
+      {
+        label: 'Surname',
+        value:
+          application.surname,
+      },
+      {
+        label: 'Middle Name',
+        value:
+          application.middle_name,
+      },
+      {
+        label: 'First Name',
+        value:
+          application.first_name,
+      },
+      {
+        label: 'Date of Birth',
+        value:
+          formatDate(
+            application.date_of_birth
+          ),
+      },
+      {
+        label: 'Gender',
+        value:
+          application.gender,
+      },
+      {
+        label: 'Nationality',
+        value:
+          application.nationality,
+      },
+      {
+        label: 'Country',
+        value:
+          application.country,
+      },
+      {
+        label: 'ID / Passport Number',
+        value:
+          application.id_passport_number,
+      },
+      {
+        label: 'Marital Status',
+        value:
+          application.marital_status,
+      },
+    ];
 
     for (
       let i = 0;
@@ -1684,6 +1640,56 @@ export async function GET(
           i + 3
         );
 
+      const row =
+        Math.floor(i / 3);
+
+      const fieldY =
+        personalStartY +
+        row *
+          personalRowHeight;
+
+      const background =
+        row % 2 === 0
+          ? COLORS.white
+          : COLORS.lighterGray;
+
+      /*
+       * Draw cells.
+       */
+
+      for (
+        let column = 0;
+        column < 3;
+        column++
+      ) {
+        const x =
+          LEFT +
+          column *
+            personalColumnWidth;
+
+        doc
+          .rect(
+            x,
+            fieldY,
+            personalColumnWidth,
+            personalRowHeight
+          )
+          .fill(background);
+
+        doc
+          .rect(
+            x,
+            fieldY,
+            personalColumnWidth,
+            personalRowHeight
+          )
+          .lineWidth(0.5)
+          .strokeColor(
+            COLORS.border
+          )
+          .stroke();
+      }
+
       rowFields.forEach(
         (item, column) => {
           const x =
@@ -1691,47 +1697,12 @@ export async function GET(
             column *
               personalColumnWidth;
 
-          const row =
-            Math.floor(i / 3);
-
-          const fieldY =
-            personalStartY +
-            row *
-              personalRowHeight;
-
-          const background =
-            row % 2 === 0
-              ? COLORS.white
-              : COLORS.lighterGray;
-
-          doc
-            .rect(
-              x,
-              fieldY,
-              personalColumnWidth,
-              personalRowHeight
-            )
-            .fill(background);
-
-          doc
-            .rect(
-              x,
-              fieldY,
-              personalColumnWidth,
-              personalRowHeight
-            )
-            .lineWidth(0.5)
-            .strokeColor(
-              COLORS.border
-            )
-            .stroke();
-
           drawText(
             item.label.toUpperCase(),
             x + 8,
-            fieldY + 7,
+            fieldY + 6,
             personalColumnWidth - 16,
-            5.8,
+            5.5,
             true,
             COLORS.gray
           );
@@ -1739,9 +1710,9 @@ export async function GET(
           drawText(
             item.value,
             x + 8,
-            fieldY + 20,
+            fieldY + 18,
             personalColumnWidth - 16,
-            7.2,
+            7,
             true,
             COLORS.black
           );
@@ -1750,7 +1721,7 @@ export async function GET(
     }
 
     /*
-     * Draw passport photo.
+     * Passport photo remains on Page 1.
      */
 
     drawPassportPhoto(
@@ -1760,17 +1731,13 @@ export async function GET(
       photoHeight
     );
 
-    /*
-     * Move below personal information.
-     */
-
     y =
       personalStartY +
       Math.ceil(
         personalFields.length / 3
       ) *
         personalRowHeight +
-      10;
+      9;
 
     /* =====================================================
        CONTACT INFORMATION
@@ -1816,10 +1783,11 @@ export async function GET(
               application.postal_code,
           },
         ],
-        y
+        y,
+        31
       );
 
-    y += 10;
+    y += 8;
 
     /* =====================================================
        GUARDIAN
@@ -1831,32 +1799,32 @@ export async function GET(
         y
       );
 
-    y =
-      drawThreeColumnTable(
-        [
-          {
-            label: 'Name',
-            value:
-              application.guardian_name,
-          },
-          {
-            label: 'Relationship',
-            value:
-              application.guardian_relationship,
-          },
-          {
-            label: 'Mobile Number',
-            value:
-              application.guardian_mobile,
-          },
-          {
-            label: 'Email Address',
-            value:
-              application.guardian_email,
-          },
-        ],
-        y
-      );
+    drawThreeColumnTable(
+      [
+        {
+          label: 'Name',
+          value:
+            application.guardian_name,
+        },
+        {
+          label: 'Relationship',
+          value:
+            application.guardian_relationship,
+        },
+        {
+          label: 'Mobile Number',
+          value:
+            application.guardian_mobile,
+        },
+        {
+          label: 'Email Address',
+          value:
+            application.guardian_email,
+        },
+      ],
+      y,
+      31
+    );
 
     /* =====================================================
        PAGE 2
@@ -1933,10 +1901,11 @@ export async function GET(
               application.mathematics_grade,
           },
         ],
-        y
+        y,
+        29
       );
 
-    y += 10;
+    y += 7;
 
     /* =====================================================
        PREVIOUS EDUCATION
@@ -1964,10 +1933,11 @@ export async function GET(
               application.highest_qualification,
           },
         ],
-        y
+        y,
+        29
       );
 
-    y += 10;
+    y += 7;
 
     /* =====================================================
        COURSE & INTAKE
@@ -1996,13 +1966,14 @@ export async function GET(
               application.intake,
           },
         ],
-        y
+        y,
+        29
       );
 
-    y += 10;
+    y += 7;
 
     /* =====================================================
-       SPONSOR
+       SPONSOR INFORMATION
     ===================================================== */
 
     y =
@@ -2040,13 +2011,14 @@ export async function GET(
               application.sponsor_email,
           },
         ],
-        y
+        y,
+        29
       );
 
-    y += 10;
+    y += 7;
 
     /* =====================================================
-       PAYMENT
+       APPLICATION & PAYMENT
     ===================================================== */
 
     y =
@@ -2056,48 +2028,62 @@ export async function GET(
         COLORS.green
       );
 
-    y =
-      drawThreeColumnTable(
-        [
-          {
-            label:
-              'Application Fee',
-            value:
-              formatCurrency(
-                application.application_fee
-              ),
-          },
-          {
-            label:
-              'Payment Status',
-            value:
-              application.payment_status,
-          },
-          {
-            label:
-              'Application Status',
-            value:
-              application.application_status,
-          },
-          {
-            label:
-              'Application Date',
-            value:
-              formatDate(
-                application.created_at
-              ),
-          },
-          {
-            label:
-              'Declaration',
-            value:
-              application.declaration
-                ? 'Accepted'
-                : 'Not Accepted',
-          },
-        ],
-        y
-      );
+    /*
+     * IMPORTANT:
+     *
+     * This table is intentionally compact so that
+     * Application Date and Declaration remain safely
+     * above the footer.
+     */
+
+    drawThreeColumnTable(
+      [
+        {
+          label:
+            'Application Fee',
+          value:
+            formatCurrency(
+              application.application_fee
+            ),
+        },
+        {
+          label:
+            'Payment Status',
+          value:
+            application.payment_status,
+        },
+        {
+          label:
+            'Application Status',
+          value:
+            application.application_status,
+        },
+        {
+          label:
+            'Application Date',
+          value:
+            formatDate(
+              application.created_at
+            ),
+        },
+        {
+          label:
+            'Declaration',
+          value:
+            application.declaration
+              ? 'Accepted'
+              : 'Not Accepted',
+        },
+      ],
+      y,
+      31
+    );
+
+    /*
+     * Page 2 ends here.
+     *
+     * Nothing else is drawn below this section.
+     */
 
     /* =====================================================
        PAGE 3
@@ -2125,16 +2111,14 @@ export async function GET(
         y
       );
 
-    /*
-     * Profile box
-     */
+    const profileHeight = 100;
 
     doc
       .roundedRect(
         LEFT,
         y,
         CONTENT_WIDTH,
-        105,
+        profileHeight,
         6
       )
       .fill(
@@ -2146,7 +2130,7 @@ export async function GET(
         LEFT,
         y,
         CONTENT_WIDTH,
-        105,
+        profileHeight,
         6
       )
       .lineWidth(0.8)
@@ -2156,7 +2140,7 @@ export async function GET(
       .stroke();
 
     /*
-     * Gold accent
+     * Gold accent.
      */
 
     doc
@@ -2164,14 +2148,14 @@ export async function GET(
         LEFT,
         y,
         6,
-        105
+        profileHeight
       )
       .fill(COLORS.gold);
 
     drawText(
       studentName,
       LEFT + 20,
-      y + 18,
+      y + 17,
       CONTENT_WIDTH - 40,
       17,
       true,
@@ -2184,7 +2168,7 @@ export async function GET(
         application.application_number
       )}`,
       LEFT + 20,
-      y + 47,
+      y + 45,
       CONTENT_WIDTH - 40,
       8,
       true,
@@ -2193,11 +2177,9 @@ export async function GET(
     );
 
     drawText(
-      displayValue(
-        application.course
-      ),
+      application.course,
       LEFT + 20,
-      y + 65,
+      y + 63,
       CONTENT_WIDTH - 40,
       8,
       true,
@@ -2210,7 +2192,7 @@ export async function GET(
         application.intake
       )}`,
       LEFT + 20,
-      y + 82,
+      y + 80,
       CONTENT_WIDTH - 40,
       7.5,
       false,
@@ -2218,7 +2200,7 @@ export async function GET(
       'center'
     );
 
-    y += 120;
+    y += 114;
 
     /* =====================================================
        APPLICATION STATUS
@@ -2269,7 +2251,7 @@ export async function GET(
       statusWidth
     );
 
-    y += 70;
+    y += 68;
 
     /* =====================================================
        DECLARATION
@@ -2281,12 +2263,14 @@ export async function GET(
         y
       );
 
+    const declarationHeight = 140;
+
     doc
       .roundedRect(
         LEFT,
         y,
         CONTENT_WIDTH,
-        145,
+        declarationHeight,
         6
       )
       .fill(
@@ -2298,7 +2282,7 @@ export async function GET(
         LEFT,
         y,
         CONTENT_WIDTH,
-        145,
+        declarationHeight,
         6
       )
       .lineWidth(0.7)
@@ -2307,12 +2291,16 @@ export async function GET(
       )
       .stroke();
 
+    /*
+     * Declaration text.
+     */
+
     drawText(
       'I declare that the information provided in this application is true, complete and accurate to the best of my knowledge. I understand that providing false or misleading information may affect my admission or continued enrollment at Shifah Medical Training College.',
       LEFT + 18,
-      y + 18,
+      y + 17,
       CONTENT_WIDTH - 36,
-      8.5,
+      8.2,
       false,
       COLORS.darkGray
     );
@@ -2323,13 +2311,16 @@ export async function GET(
       );
 
     /*
-     * Declaration status badge
+     * Declaration badge.
      */
+
+    const badgeY =
+      y + 91;
 
     doc
       .roundedRect(
         LEFT + 18,
-        y + 90,
+        badgeY,
         190,
         30,
         4
@@ -2343,7 +2334,7 @@ export async function GET(
     doc
       .roundedRect(
         LEFT + 18,
-        y + 90,
+        badgeY,
         190,
         30,
         4
@@ -2361,7 +2352,7 @@ export async function GET(
         ? 'DECLARATION ACCEPTED'
         : 'DECLARATION NOT ACCEPTED',
       LEFT + 28,
-      y + 100,
+      badgeY + 10,
       170,
       7,
       true,
@@ -2371,20 +2362,24 @@ export async function GET(
       'center'
     );
 
+    /*
+     * Submission date.
+     */
+
     drawText(
       `Submitted: ${formatDate(
         application.created_at
       )}`,
       LEFT + 225,
-      y + 101,
+      badgeY + 10,
       265,
-      7.5,
+      7.2,
       false,
       COLORS.gray,
       'right'
     );
 
-    y += 165;
+    y += declarationHeight + 17;
 
     /* =====================================================
        OFFICIAL USE
@@ -2397,7 +2392,11 @@ export async function GET(
         COLORS.green
       );
 
-    const officialHeight = 155;
+    const officialHeight = 148;
+
+    /*
+     * Outer official-use container.
+     */
 
     doc
       .roundedRect(
@@ -2424,7 +2423,7 @@ export async function GET(
       .stroke();
 
     /*
-     * Gold top accent
+     * Gold top accent.
      */
 
     doc
@@ -2437,21 +2436,21 @@ export async function GET(
       .fill(COLORS.gold);
 
     /*
-     * Official fields
+     * Three official fields.
      */
 
-    const officialGap = 10;
+    const officialGap = 9;
 
     const officialWidth =
       (CONTENT_WIDTH -
-        officialGap * 2 -
-        24) /
+        24 -
+        officialGap * 2) /
       3;
 
     drawOfficialField(
       'Reviewed By',
       LEFT + 12,
-      y + 18,
+      y + 16,
       officialWidth
     );
 
@@ -2461,7 +2460,7 @@ export async function GET(
         12 +
         officialWidth +
         officialGap,
-      y + 18,
+      y + 16,
       officialWidth
     );
 
@@ -2472,43 +2471,43 @@ export async function GET(
         (officialWidth +
           officialGap) *
           2,
-      y + 18,
+      y + 16,
       officialWidth
     );
 
     /*
-     * Signature
+     * Signature area.
      */
 
     drawText(
       'AUTHORIZED SIGNATURE',
       LEFT + 15,
-      y + 92,
+      y + 82,
       180,
-      6.5,
+      6.3,
       true,
       COLORS.gray
     );
 
     drawLine(
       LEFT + 15,
-      y + 121,
+      y + 111,
       LEFT + 195,
-      y + 121,
+      y + 111,
       COLORS.darkGreen,
       0.8
     );
 
     /*
-     * Stamp
+     * Stamp area.
      */
 
     drawText(
       'OFFICIAL COLLEGE STAMP',
       LEFT + 270,
-      y + 92,
+      y + 82,
       220,
-      6.5,
+      6.3,
       true,
       COLORS.gray,
       'center'
@@ -2517,8 +2516,8 @@ export async function GET(
     doc
       .circle(
         LEFT + 380,
-        y + 122,
-        32
+        y + 110,
+        30
       )
       .lineWidth(1)
       .strokeColor(
@@ -2529,8 +2528,8 @@ export async function GET(
     doc
       .circle(
         LEFT + 380,
-        y + 122,
-        25
+        y + 110,
+        23
       )
       .lineWidth(0.6)
       .strokeColor(
@@ -2541,7 +2540,7 @@ export async function GET(
     drawText(
       'STAMP',
       LEFT + 350,
-      y + 118,
+      y + 106,
       60,
       5.5,
       true,
@@ -2553,19 +2552,33 @@ export async function GET(
        SYSTEM NOTICE
     ===================================================== */
 
-    drawText(
-      'This document contains information submitted by the applicant through the Shifah Medical Training College online application system.',
-      LEFT,
-      CONTENT_BOTTOM - 20,
-      CONTENT_WIDTH,
-      6.2,
-      false,
-      COLORS.gray,
-      'center'
-    );
+    /*
+     * Keep this above the footer.
+     */
+
+    const noticeY =
+      y +
+      officialHeight +
+      12;
+
+    if (
+      noticeY + 12 <
+      CONTENT_BOTTOM
+    ) {
+      drawText(
+        'This document contains information submitted by the applicant through the Shifah Medical Training College online application system.',
+        LEFT,
+        noticeY,
+        CONTENT_WIDTH,
+        6.2,
+        false,
+        COLORS.gray,
+        'center'
+      );
+    }
 
     /* =====================================================
-       FOOTER FOR ALL PAGES
+       FOOTERS FOR ALL PAGES
     ===================================================== */
 
     const range =
