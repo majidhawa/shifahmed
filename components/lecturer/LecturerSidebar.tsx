@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import {
@@ -27,20 +27,21 @@ import {
    LECTURER SIDEBAR
    Shifah Medical Training College LMS
 
-   Navigation:
-   - Dashboard
-   - My Courses
-   - Units
-   - Lessons
-   - Learning Materials
-   - Assignments
-   - Quizzes & Exams
-   - Grades & Results
-   - My Students
-   - Attendance
-   - Announcements
-   - Notifications
-   - My Profile
+   ROUTE STRUCTURE
+
+   /lecturer/dashboard
+   /lecturer/dashboard/courses
+   /lecturer/dashboard/units
+   /lecturer/dashboard/lessons
+   /lecturer/dashboard/materials
+   /lecturer/dashboard/assignments
+   /lecturer/dashboard/quizzes
+   /lecturer/dashboard/grades
+   /lecturer/dashboard/students
+   /lecturer/dashboard/attendance
+   /lecturer/dashboard/announcements
+   /lecturer/dashboard/notifications
+   /lecturer/dashboard/profile
 ========================================================= */
 
 /* =========================================================
@@ -70,6 +71,7 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'MAIN',
+
     items: [
       {
         label: 'Dashboard',
@@ -85,25 +87,29 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'TEACHING',
+
     items: [
       {
         label: 'My Courses',
-        href: '/lecturer/courses',
+        href: '/lecturer/dashboard/courses',
         icon: BookOpen,
       },
+
       {
         label: 'Course Units',
-        href: '/lecturer/units',
+        href: '/lecturer/dashboard/units',
         icon: Layers3,
       },
+
       {
         label: 'Lessons',
-        href: '/lecturer/lessons',
+        href: '/lecturer/dashboard/lessons',
         icon: ClipboardList,
       },
+
       {
         label: 'Learning Materials',
-        href: '/lecturer/materials',
+        href: '/lecturer/dashboard/materials',
         icon: FileText,
       },
     ],
@@ -115,20 +121,23 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'ASSESSMENT',
+
     items: [
       {
         label: 'Assignments',
-        href: '/lecturer/assignments',
+        href: '/lecturer/dashboard/assignments',
         icon: ClipboardCheck,
       },
+
       {
         label: 'Quizzes & Exams',
-        href: '/lecturer/quizzes',
+        href: '/lecturer/dashboard/quizzes',
         icon: BarChart3,
       },
+
       {
         label: 'Grades & Results',
-        href: '/lecturer/grades',
+        href: '/lecturer/dashboard/grades',
         icon: GraduationCap,
       },
     ],
@@ -140,15 +149,17 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'STUDENTS',
+
     items: [
       {
         label: 'My Students',
-        href: '/lecturer/students',
+        href: '/lecturer/dashboard/students',
         icon: Users,
       },
+
       {
         label: 'Attendance',
-        href: '/lecturer/attendance',
+        href: '/lecturer/dashboard/attendance',
         icon: CalendarCheck,
       },
     ],
@@ -160,15 +171,17 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'COMMUNICATION',
+
     items: [
       {
         label: 'Announcements',
-        href: '/lecturer/announcements',
+        href: '/lecturer/dashboard/announcements',
         icon: Megaphone,
       },
+
       {
         label: 'Notifications',
-        href: '/lecturer/notifications',
+        href: '/lecturer/dashboard/notifications',
         icon: Bell,
       },
     ],
@@ -180,10 +193,11 @@ const navigationSections: NavigationSection[] = [
 
   {
     title: 'ACCOUNT',
+
     items: [
       {
         label: 'My Profile',
-        href: '/lecturer/profile',
+        href: '/lecturer/dashboard/profile',
         icon: UserCircle,
       },
     ],
@@ -198,8 +212,6 @@ export default function LecturerSidebar() {
 
   const pathname = usePathname();
 
-  const router = useRouter();
-
   const [mobileOpen, setMobileOpen] =
     useState(false);
 
@@ -213,9 +225,11 @@ export default function LecturerSidebar() {
   useEffect(() => {
 
     const handleToggle = () => {
+
       setMobileOpen(
         (current) => !current
       );
+
     };
 
     window.addEventListener(
@@ -251,14 +265,19 @@ export default function LecturerSidebar() {
   useEffect(() => {
 
     if (!mobileOpen) {
+
       document.body.style.overflow = '';
+
       return;
+
     }
 
     document.body.style.overflow = 'hidden';
 
     return () => {
+
       document.body.style.overflow = '';
+
     };
 
   }, [mobileOpen]);
@@ -267,36 +286,43 @@ export default function LecturerSidebar() {
      ACTIVE NAVIGATION CHECK
   ======================================================== */
 
-  const isActive = (href: string) => {
+  const isActive = (
+    href: string
+  ) => {
 
     /*
-     * Dashboard should only be active on the exact
-     * dashboard route.
+     * Dashboard is active only on the
+     * exact dashboard URL.
      */
 
     if (
       href === '/lecturer/dashboard'
     ) {
+
       return pathname === href;
+
     }
 
     /*
-     * Other navigation items remain active for
-     * nested routes.
+     * All other sections support nested
+     * routes.
      *
      * Example:
      *
-     * /lecturer/courses
-     * /lecturer/courses/1
-     * /lecturer/courses/1/edit
+     * /lecturer/dashboard/courses
+     * /lecturer/dashboard/courses/1
+     * /lecturer/dashboard/courses/1/edit
      *
-     * All belong to My Courses.
+     * All remain under My Courses.
      */
 
     return (
       pathname === href ||
-      pathname.startsWith(`${href}/`)
+      pathname.startsWith(
+        `${href}/`
+      )
     );
+
   };
 
   /* =======================================================
@@ -316,32 +342,33 @@ export default function LecturerSidebar() {
   const handleLogout = async () => {
 
     /*
-     * Prevent multiple logout requests.
+     * Prevent duplicate logout requests.
      */
 
     if (loggingOut) {
+
       return;
+
     }
 
     setLoggingOut(true);
 
     try {
 
-      const response = await fetch(
-        '/api/lecturer/logout',
-        {
-          method: 'POST',
-          credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        }
-      );
+      const response =
+        await fetch(
+          '/api/lecturer/logout',
+          {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
 
-      /*
-       * The API should return HTTP 200.
-       */
+            headers: {
+              'Cache-Control':
+                'no-cache',
+            },
+          }
+        );
 
       if (!response.ok) {
 
@@ -361,17 +388,12 @@ export default function LecturerSidebar() {
 
     } finally {
 
-      /*
-       * Close the mobile sidebar.
-       */
-
       setMobileOpen(false);
 
       /*
-       * Replace the current history entry instead
-       * of adding another entry.
-       *
-       * This is important for logout behaviour.
+       * Replace the current browser history
+       * entry so the lecturer cannot simply
+       * navigate back to the previous page.
        */
 
       window.location.replace(
@@ -382,9 +404,9 @@ export default function LecturerSidebar() {
 
   };
 
-  /* =======================================================
+  /* =========================================================
      SIDEBAR CONTENT
-  ======================================================== */
+  ========================================================= */
 
   const sidebarContent = (
 
@@ -398,11 +420,13 @@ export default function LecturerSidebar() {
 
         <Link
           href="/lecturer/dashboard"
-          onClick={closeMobileSidebar}
+          onClick={
+            closeMobileSidebar
+          }
           className="flex items-center gap-3"
         >
 
-          {/* Logo */}
+          {/* LOGO */}
 
           <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-lg">
 
@@ -414,7 +438,7 @@ export default function LecturerSidebar() {
 
           </div>
 
-          {/* Brand text */}
+          {/* BRAND TEXT */}
 
           <div className="min-w-0">
 
@@ -449,13 +473,13 @@ export default function LecturerSidebar() {
               className="mb-6"
             >
 
-              {/* Section title */}
+              {/* SECTION TITLE */}
 
               <p className="mb-2 px-3 text-[10px] font-bold tracking-[0.18em] text-white/40">
                 {section.title}
               </p>
 
-              {/* Section items */}
+              {/* SECTION ITEMS */}
 
               <div className="space-y-1">
 
@@ -466,7 +490,9 @@ export default function LecturerSidebar() {
                       item.icon;
 
                     const active =
-                      isActive(item.href);
+                      isActive(
+                        item.href
+                      );
 
                     return (
 
@@ -488,7 +514,7 @@ export default function LecturerSidebar() {
                         }`}
                       >
 
-                        {/* Icon */}
+                        {/* ICON */}
 
                         <Icon
                           className={`h-5 w-5 shrink-0 transition-colors ${
@@ -498,13 +524,13 @@ export default function LecturerSidebar() {
                           }`}
                         />
 
-                        {/* Label */}
+                        {/* LABEL */}
 
                         <span className="truncate">
                           {item.label}
                         </span>
 
-                        {/* Active indicator */}
+                        {/* ACTIVE INDICATOR */}
 
                         {active && (
 
@@ -534,7 +560,7 @@ export default function LecturerSidebar() {
 
       <div className="border-t border-white/10 p-4">
 
-        {/* LMS information */}
+        {/* LMS INFORMATION */}
 
         <div className="rounded-2xl bg-white/5 p-4">
 
@@ -618,7 +644,9 @@ export default function LecturerSidebar() {
           type="button"
           aria-label="Close lecturer navigation"
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] lg:hidden"
-          onClick={closeMobileSidebar}
+          onClick={
+            closeMobileSidebar
+          }
         />
 
       )}
@@ -634,7 +662,9 @@ export default function LecturerSidebar() {
             : '-translate-x-full'
         }`}
         aria-label="Lecturer mobile navigation"
-        aria-hidden={!mobileOpen}
+        aria-hidden={
+          !mobileOpen
+        }
       >
 
         {/* =================================================
@@ -646,7 +676,9 @@ export default function LecturerSidebar() {
           <button
             type="button"
             aria-label="Close navigation"
-            onClick={closeMobileSidebar}
+            onClick={
+              closeMobileSidebar
+            }
             className="flex h-9 w-9 items-center justify-center rounded-xl text-white/60 transition hover:bg-white/10 hover:text-white"
           >
 
@@ -663,4 +695,5 @@ export default function LecturerSidebar() {
     </>
 
   );
+
 }
