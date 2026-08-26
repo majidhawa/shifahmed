@@ -15,24 +15,39 @@ type RouteContext = {
 };
 
 /* =========================================================
+   TYPES
+========================================================= */
+
+type Field = {
+  label: string;
+  value: unknown;
+};
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
+/**
+ * Convert an unknown value into a safe display string.
+ */
 function displayValue(value: unknown): string {
   if (
     value === null ||
     value === undefined ||
-    value === ''
+    String(value).trim() === ''
   ) {
-    return '';
+    return '—';
   }
 
   return String(value);
 }
 
+/**
+ * Format database dates for Kenya.
+ */
 function formatDate(value: unknown): string {
   if (!value) {
-    return '';
+    return '—';
   }
 
   const date = new Date(String(value));
@@ -43,9 +58,202 @@ function formatDate(value: unknown): string {
 
   return date.toLocaleDateString('en-KE', {
     day: '2-digit',
-    month: '2-digit',
+    month: 'long',
     year: 'numeric',
   });
+}
+
+/**
+ * Format Kenyan currency.
+ */
+function formatCurrency(value: unknown): string {
+  const amount = Number(value || 0);
+
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
+ * Make a safe PDF filename.
+ */
+function safeFileName(value: unknown): string {
+  return String(value || 'application').replace(
+    /[^a-zA-Z0-9_-]/g,
+    '_'
+  );
+}
+
+/**
+ * Determine whether a URL is an image URL.
+ */
+function isHttpUrl(value: string): boolean {
+  return (
+    value.startsWith('http://') ||
+    value.startsWith('https://')
+  );
+}
+
+/**
+ * Load an image from the value stored in the database.
+ *
+ * Supported formats:
+ *
+ * 1. Base64 data URL
+ *    data:image/jpeg;base64,...
+ *
+ * 2. HTTP/HTTPS URL
+ *    https://...
+ *
+ * 3. Public/local path
+ *    /uploads/applications/photo.jpg
+ *
+ * 4. Relative filesystem path
+ *    uploads/applications/photo.jpg
+ */
+async function getImageBuffer(
+  imageValue: unknown
+): Promise<Buffer | null> {
+  if (
+    imageValue === null ||
+    imageValue === undefined
+  ) {
+    return null;
+  }
+
+  const image = String(imageValue).trim();
+
+  if (!image) {
+    return null;
+  }
+
+  try {
+    /* =====================================================
+       BASE64 DATA URL
+    ===================================================== */
+
+    if (image.startsWith('data:image/')) {
+      const commaIndex = image.indexOf(',');
+
+      if (commaIndex === -1) {
+        return null;
+      }
+
+      const base64Data =
+        image.substring(commaIndex + 1);
+
+      if (!base64Data) {
+        return null;
+      }
+
+      return Buffer.from(
+        base64Data,
+        'base64'
+      );
+    }
+
+    /* =====================================================
+       HTTP / HTTPS URL
+    ===================================================== */
+
+    if (isHttpUrl(image)) {
+      const response = await fetch(image, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        console.error(
+          `Unable to fetch passport photo. HTTP status: ${response.status}`
+        );
+
+        return null;
+      }
+
+      const contentType =
+        response.headers.get(
+          'content-type'
+        );
+
+      /*
+       * Do not strictly reject the image if the
+       * storage provider does not return a perfect
+       * image content type.
+       */
+
+      if (
+        contentType &&
+        !contentType.startsWith('image/')
+      ) {
+        console.warn(
+          `Passport photo URL returned content type: ${contentType}`
+        );
+      }
+
+      const arrayBuffer =
+        await response.arrayBuffer();
+
+      return Buffer.from(arrayBuffer);
+    }
+
+    /* =====================================================
+       LOCAL FILE
+    ===================================================== */
+
+    let filePath = image;
+
+    /*
+     * Database contains:
+     *
+     * /uploads/applications/photo.jpg
+     *
+     * Convert it to:
+     *
+     * <project>/public/uploads/applications/photo.jpg
+     */
+
+    if (image.startsWith('/')) {
+      filePath = path.join(
+        process.cwd(),
+        'public',
+        image.replace(/^\/+/, '')
+      );
+    }
+
+    /*
+     * Database contains:
+     *
+     * uploads/applications/photo.jpg
+     */
+
+    else if (!path.isAbsolute(image)) {
+      filePath = path.join(
+        process.cwd(),
+        'public',
+        image
+      );
+    }
+
+    if (!fs.existsSync(filePath)) {
+      console.error(
+        `Passport photo file does not exist: ${filePath}`
+      );
+
+      return null;
+    }
+
+    return fs.readFileSync(filePath);
+  } catch (error) {
+    console.error(
+      'Error loading passport photo:',
+      error
+    );
+
+    return null;
+  }
 }
 
 /* =========================================================
@@ -87,16 +295,14 @@ export async function GET(
     }
 
     /* =====================================================
-       GET APPLICATION
-       
-       Only fields that correspond to the uploaded
-       application form are used.
+       FETCH APPLICATION
     ===================================================== */
 
     const result = await pool.query(
       `
         SELECT
           id,
+          application_number,
 
           surname,
           middle_name,
@@ -116,10 +322,20 @@ export async function GET(
           mobile,
           email,
 
-          guardian_name,
-          guardian_relationship,
-          guardian_mobile,
-          guardian_email,
+          kcse_index,
+          kcse_year,
+          kcse_mean_grade,
+          english_grade,
+          kiswahili_grade,
+          biology_grade,
+          chemistry_grade,
+          physics_grade,
+          mathematics_grade,
+          previous_institution,
+          highest_qualification,
+
+          course,
+          intake,
 
           sponsor_type,
           sponsor_name,
@@ -127,7 +343,19 @@ export async function GET(
           sponsor_mobile,
           sponsor_email,
 
-          created_at
+          guardian_name,
+          guardian_relationship,
+          guardian_mobile,
+          guardian_email,
+
+          application_fee,
+          payment_status,
+          application_status,
+
+          declaration,
+          created_at,
+
+          passport_photo
 
         FROM applications
 
@@ -137,10 +365,6 @@ export async function GET(
       `,
       [applicationId]
     );
-
-    /* =====================================================
-       APPLICATION NOT FOUND
-    ===================================================== */
 
     if (result.rows.length === 0) {
       return NextResponse.json(
@@ -157,29 +381,55 @@ export async function GET(
     const application = result.rows[0];
 
     /* =====================================================
-       FILE PATHS
+       APPLICANT NAME
     ===================================================== */
 
-    const regularFontPath = path.join(
-      process.cwd(),
-      'public',
-      'fonts',
-      'DejaVuSans.ttf'
-    );
+    const studentName =
+      [
+        application.first_name,
+        application.middle_name,
+        application.surname,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Applicant';
 
-    const boldFontPath = path.join(
-      process.cwd(),
-      'public',
-      'fonts',
-      'DejaVuSans-Bold.ttf'
-    );
+    /* =====================================================
+       LOAD PASSPORT PHOTO
+    ===================================================== */
 
-    const logoPath = path.join(
-      process.cwd(),
-      'public',
-      'images',
-      'logo.jpg'
-    );
+    const passportPhotoBuffer =
+      await getImageBuffer(
+        application.passport_photo
+      );
+
+    /* =====================================================
+       ASSET PATHS
+    ===================================================== */
+
+    const regularFontPath =
+      path.join(
+        process.cwd(),
+        'public',
+        'fonts',
+        'DejaVuSans.ttf'
+      );
+
+    const boldFontPath =
+      path.join(
+        process.cwd(),
+        'public',
+        'fonts',
+        'DejaVuSans-Bold.ttf'
+      );
+
+    const logoPath =
+      path.join(
+        process.cwd(),
+        'public',
+        'images',
+        'logo.jpg'
+      );
 
     if (!fs.existsSync(regularFontPath)) {
       throw new Error(
@@ -194,37 +444,42 @@ export async function GET(
     }
 
     /* =====================================================
-       PDF CONSTANTS
+       BRAND COLORS
     ===================================================== */
 
-    const PAGE_WIDTH = 595.28;
-    const PAGE_HEIGHT = 841.89;
-
-    const LEFT = 45;
-    const RIGHT = 550;
-
-    const CONTENT_WIDTH = RIGHT - LEFT;
-
-    /*
-     * The uploaded form uses approximately:
-     *
-     * left/right margin: 45pt
-     * section borders: black
-     * red divider
-     * blue section titles
-     */
-
     const COLORS = {
-      black: '#000000',
+      green: '#047857',
+      darkGreen: '#065F46',
+      deepGreen: '#064E3B',
+
+      gold: '#C9A227',
+      darkGold: '#A67C00',
+
       white: '#FFFFFF',
-      blue: '#21469A',
-      red: '#B31B1B',
-      gray: '#333333',
-      lightGray: '#F5F5F5',
+      black: '#111827',
+
+      darkGray: '#374151',
+      gray: '#6B7280',
+      muted: '#9CA3AF',
+
+      lightGray: '#F3F4F6',
+      lighterGray: '#F8FAFC',
+
+      border: '#D1D5DB',
+
+      success: '#047857',
+      warning: '#A16207',
+      danger: '#B91C1C',
+      blue: '#1D4ED8',
+
+      softGreen: '#ECFDF5',
+      softRed: '#FEF2F2',
+      softGold: '#FFFBEB',
+      softBlue: '#EFF6FF',
     };
 
     /* =====================================================
-       PDF DOCUMENT
+       DOCUMENT
     ===================================================== */
 
     const doc = new PDFDocument({
@@ -237,20 +492,21 @@ export async function GET(
         right: 0,
       },
 
-      autoFirstPage: true,
-
       bufferPages: true,
 
       font: regularFontPath,
 
       info: {
-        Title: 'Shifah Medical Training College - Application Form',
+        Title:
+          `SMTC Student Application - ${displayValue(
+            application.application_number
+          )}`,
 
         Author:
           'Shifah Medical Training College',
 
         Subject:
-          'Application Form',
+          'Official Student Application Record',
 
         Creator:
           'Shifah Medical Training College',
@@ -286,100 +542,134 @@ export async function GET(
       }
     );
 
-    const pdfPromise = new Promise<Buffer>(
-      (resolve, reject) => {
-        doc.on(
-          'end',
-          () => {
+    const pdfPromise =
+      new Promise<Buffer>(
+        (resolve, reject) => {
+          doc.on('end', () => {
             resolve(
               Buffer.concat(chunks)
             );
-          }
-        );
+          });
 
-        doc.on(
-          'error',
-          reject
-        );
-      }
-    );
+          doc.on(
+            'error',
+            reject
+          );
+        }
+      );
 
     /* =====================================================
-       BASIC DRAWING HELPERS
+       PAGE DIMENSIONS
+    ===================================================== */
+
+    const PAGE_WIDTH = 595.28;
+    const PAGE_HEIGHT = 841.89;
+
+    const LEFT = 42;
+    const RIGHT = 553;
+
+    const CONTENT_WIDTH =
+      RIGHT - LEFT;
+
+    const HEADER_BOTTOM = 112;
+
+    const FOOTER_HEIGHT = 52;
+
+    const CONTENT_TOP = 122;
+
+    const CONTENT_BOTTOM =
+      PAGE_HEIGHT -
+      FOOTER_HEIGHT -
+      18;
+
+    /* =====================================================
+       TEXT HELPER
     ===================================================== */
 
     const drawText = (
-      text: string,
+      value: unknown,
       x: number,
       y: number,
       width: number,
-      fontSize: number,
+      size = 8,
       bold = false,
+      color = COLORS.black,
       align:
         | 'left'
         | 'center'
         | 'right' = 'left'
     ) => {
       doc
-        .fillColor(COLORS.black)
         .font(
           bold
             ? 'SMTC-Bold'
             : 'SMTC-Regular'
         )
-        .fontSize(fontSize)
+        .fontSize(size)
+        .fillColor(color)
         .text(
-          text,
+          displayValue(value),
           x,
           y,
           {
             width,
             align,
-            lineBreak: false,
+            lineGap: 1,
           }
         );
     };
 
+    /* =====================================================
+       LINE HELPER
+    ===================================================== */
+
     const drawLine = (
       x1: number,
-      y: number,
+      y1: number,
       x2: number,
-      lineWidth = 1
+      y2: number,
+      color = COLORS.border,
+      width = 0.7
     ) => {
       doc
-        .moveTo(x1, y)
-        .lineTo(x2, y)
-        .lineWidth(lineWidth)
-        .strokeColor(COLORS.black)
-        .stroke();
-    };
-
-    const drawBox = (
-      x: number,
-      y: number,
-      width: number,
-      height: number,
-      lineWidth = 0.8
-    ) => {
-      doc
-        .rect(
-          x,
-          y,
-          width,
-          height
-        )
-        .lineWidth(lineWidth)
-        .strokeColor(COLORS.black)
+        .moveTo(x1, y1)
+        .lineTo(x2, y2)
+        .lineWidth(width)
+        .strokeColor(color)
         .stroke();
     };
 
     /* =====================================================
        HEADER
-       
-       Matches the uploaded application form.
     ===================================================== */
 
     const drawHeader = () => {
+      /*
+       * Green top strip
+       */
+
+      doc
+        .rect(
+          0,
+          0,
+          PAGE_WIDTH,
+          7
+        )
+        .fill(COLORS.green);
+
+      /*
+       * Gold accent
+       */
+
+      doc
+        .rect(
+          0,
+          7,
+          PAGE_WIDTH,
+          3
+        )
+        .fill(COLORS.gold);
+
       /*
        * Logo
        */
@@ -388,12 +678,10 @@ export async function GET(
         try {
           doc.image(
             logoPath,
-            PAGE_WIDTH / 2 - 42,
-            35,
+            LEFT,
+            25,
             {
-              fit: [84, 84],
-              align: 'center',
-              valign: 'center',
+              fit: [65, 65],
             }
           );
         } catch (error) {
@@ -410,11 +698,12 @@ export async function GET(
 
       drawText(
         'SHIFAH MEDICAL TRAINING COLLEGE',
-        45,
-        130,
-        CONTENT_WIDTH,
-        15,
+        120,
+        27,
+        390,
+        16,
         true,
+        COLORS.deepGreen,
         'center'
       );
 
@@ -424,11 +713,12 @@ export async function GET(
 
       drawText(
         'Health through Innovation & research',
-        45,
-        149,
-        CONTENT_WIDTH,
-        9,
+        120,
+        49,
+        390,
+        8,
         true,
+        COLORS.darkGold,
         'center'
       );
 
@@ -437,105 +727,129 @@ export async function GET(
        */
 
       drawText(
-        'P.O BOX 37-40308, AMBWERE PLAZA, KITALE, KENYA.',
-        45,
-        174,
-        CONTENT_WIDTH,
-        8.5,
+        'P.O BOX 37-40308, AMBWERE PLAZA, KITALE, KENYA',
+        120,
+        65,
+        390,
+        7.2,
         true,
+        COLORS.darkGray,
         'center'
       );
 
       /*
-       * Telephone
+       * Contact
        */
 
       drawText(
-        'TEL: (0722-378-665)',
-        45,
-        191,
-        CONTENT_WIDTH,
-        8.5,
-        true,
-        'center'
-      );
-
-      /*
-       * Office
-       */
-
-      drawText(
-        'OFFICE OF THE PRINCIPAL',
-        45,
-        226,
-        CONTENT_WIDTH,
-        9,
-        true,
-        'center'
-      );
-
-      /*
-       * Email
-       */
-
-      drawText(
-        'EMAIL: admissions.smtc@gmail.com',
-        45,
-        242,
-        CONTENT_WIDTH,
-        8.5,
-        true,
-        'center'
-      );
-
-      /*
-       * Repeated motto
-       */
-
-      drawText(
-        'Health through Innovation & research',
-        45,
-        258,
-        CONTENT_WIDTH,
-        8.5,
+        'TEL: (0722-378-665)  |  EMAIL: admissions.smtc@gmail.com',
+        120,
+        78,
+        390,
+        7.2,
         false,
+        COLORS.gray,
         'center'
       );
 
       /*
-       * Red divider
+       * Divider
        */
 
-      doc
-        .moveTo(33, 286)
-        .lineTo(PAGE_WIDTH - 33, 286)
-        .lineWidth(2.5)
-        .strokeColor(COLORS.red)
-        .stroke();
+      drawLine(
+        LEFT,
+        HEADER_BOTTOM,
+        RIGHT,
+        HEADER_BOTTOM,
+        COLORS.gold,
+        1.4
+      );
     };
 
     /* =====================================================
-       FORM TITLE
+       FOOTER
     ===================================================== */
 
-    const drawFormTitle = () => {
+    const drawFooter = (
+      pageNumber: number,
+      totalPages: number
+    ) => {
+      const y =
+        PAGE_HEIGHT -
+        FOOTER_HEIGHT;
+
+      drawLine(
+        LEFT,
+        y,
+        RIGHT,
+        y,
+        COLORS.gold,
+        0.9
+      );
+
       drawText(
-        'APPLICATION FORM',
-        45,
-        299,
+        'SHIFAH MEDICAL TRAINING COLLEGE',
+        LEFT,
+        y + 8,
         CONTENT_WIDTH,
-        11,
+        6.5,
         true,
+        COLORS.deepGreen,
         'center'
       );
 
       drawText(
-        'Please complete this form in BLOCK LETTERS',
-        45,
-        324,
+        'Health through Innovation & research',
+        LEFT,
+        y + 19,
         CONTENT_WIDTH,
-        8.5,
+        6,
         false,
+        COLORS.gray,
+        'center'
+      );
+
+      drawText(
+        `Application ${displayValue(
+          application.application_number
+        )}  •  Page ${pageNumber} of ${totalPages}`,
+        LEFT,
+        y + 30,
+        CONTENT_WIDTH,
+        6,
+        false,
+        COLORS.gray,
+        'center'
+      );
+    };
+
+    /* =====================================================
+       DOCUMENT TITLE
+    ===================================================== */
+
+    const drawDocumentTitle = (
+      title: string,
+      subtitle: string
+    ) => {
+      drawText(
+        title,
+        LEFT,
+        CONTENT_TOP,
+        CONTENT_WIDTH,
+        17,
+        true,
+        COLORS.deepGreen,
+        'center'
+      );
+
+      drawText(
+        subtitle,
+        LEFT,
+        CONTENT_TOP + 25,
+        CONTENT_WIDTH,
+        7.5,
+        true,
+        COLORS.darkGold,
         'center'
       );
     };
@@ -544,101 +858,697 @@ export async function GET(
        SECTION HEADER
     ===================================================== */
 
-    const sectionHeader = (
+    const drawSection = (
       title: string,
-      y: number
+      y: number,
+      color = COLORS.deepGreen
     ) => {
-      const height = 26;
+      doc
+        .roundedRect(
+          LEFT,
+          y,
+          CONTENT_WIDTH,
+          27,
+          4
+        )
+        .fill(color);
+
+      /*
+       * Gold accent
+       */
+
+      doc
+        .rect(
+          LEFT,
+          y,
+          5,
+          27
+        )
+        .fill(COLORS.gold);
+
+      drawText(
+        title,
+        LEFT + 15,
+        y + 8,
+        CONTENT_WIDTH - 25,
+        8.5,
+        true,
+        COLORS.white
+      );
+
+      return y + 34;
+    };
+
+    /* =====================================================
+       TWO COLUMN TABLE
+    ===================================================== */
+
+    const drawTwoColumnTable = (
+      fields: Field[],
+      startY: number
+    ) => {
+      const labelWidth = 145;
+
+      const valueWidth =
+        CONTENT_WIDTH -
+        labelWidth;
+
+      const rowHeight = 32;
+
+      let y = startY;
+
+      /*
+       * Header
+       */
 
       doc
         .rect(
           LEFT,
           y,
           CONTENT_WIDTH,
-          height
+          24
         )
-        .lineWidth(0.8)
-        .strokeColor(COLORS.black)
-        .stroke();
+        .fill(COLORS.deepGreen);
 
       drawText(
-        title,
-        LEFT + 5,
+        'FIELD',
+        LEFT + 10,
         y + 7,
-        CONTENT_WIDTH - 10,
-        9.5,
+        labelWidth - 20,
+        6.5,
         true,
-        'center'
+        COLORS.white
       );
 
-      /*
-       * Section heading is blue in the
-       * original uploaded document.
-       */
+      drawText(
+        'INFORMATION',
+        LEFT + labelWidth + 10,
+        y + 7,
+        valueWidth - 20,
+        6.5,
+        true,
+        COLORS.white
+      );
 
-      doc
-        .fillColor(COLORS.blue)
-        .font('SMTC-Bold')
-        .fontSize(9.5)
-        .text(
-          title,
-          LEFT + 5,
-          y + 7,
-          {
-            width:
-              CONTENT_WIDTH - 10,
-            align: 'center',
-            lineBreak: false,
-          }
-        );
+      drawLine(
+        LEFT + labelWidth,
+        y,
+        LEFT + labelWidth,
+        y + 24,
+        COLORS.white,
+        0.6
+      );
+
+      y += 24;
+
+      fields.forEach(
+        (item, index) => {
+          const background =
+            index % 2 === 0
+              ? COLORS.white
+              : COLORS.lighterGray;
+
+          doc
+            .rect(
+              LEFT,
+              y,
+              CONTENT_WIDTH,
+              rowHeight
+            )
+            .fill(background);
+
+          doc
+            .rect(
+              LEFT,
+              y,
+              CONTENT_WIDTH,
+              rowHeight
+            )
+            .lineWidth(0.5)
+            .strokeColor(
+              COLORS.border
+            )
+            .stroke();
+
+          drawLine(
+            LEFT + labelWidth,
+            y,
+            LEFT + labelWidth,
+            y + rowHeight,
+            COLORS.border,
+            0.5
+          );
+
+          drawText(
+            item.label,
+            LEFT + 10,
+            y + 9,
+            labelWidth - 20,
+            7,
+            true,
+            COLORS.gray
+          );
+
+          drawText(
+            item.value,
+            LEFT + labelWidth + 10,
+            y + 8,
+            valueWidth - 20,
+            7.5,
+            true,
+            COLORS.black
+          );
+
+          y += rowHeight;
+        }
+      );
+
+      return y;
     };
 
     /* =====================================================
-       LABEL + LINE
+       THREE COLUMN TABLE
     ===================================================== */
 
-    const labelLine = (
+    const drawThreeColumnTable = (
+      fields: Field[],
+      startY: number
+    ) => {
+      const columnWidth =
+        CONTENT_WIDTH / 3;
+
+      const rowHeight = 42;
+
+      let y = startY;
+
+      for (
+        let i = 0;
+        i < fields.length;
+        i += 3
+      ) {
+        const rowFields =
+          fields.slice(i, i + 3);
+
+        rowFields.forEach(
+          (item, column) => {
+            const x =
+              LEFT +
+              column *
+                columnWidth;
+
+            const background =
+              (i / 3) % 2 === 0
+                ? COLORS.white
+                : COLORS.lighterGray;
+
+            doc
+              .rect(
+                x,
+                y,
+                columnWidth,
+                rowHeight
+              )
+              .fill(background);
+
+            doc
+              .rect(
+                x,
+                y,
+                columnWidth,
+                rowHeight
+              )
+              .lineWidth(0.5)
+              .strokeColor(
+                COLORS.border
+              )
+              .stroke();
+
+            drawText(
+              item.label.toUpperCase(),
+              x + 9,
+              y + 7,
+              columnWidth - 18,
+              6,
+              true,
+              COLORS.gray
+            );
+
+            drawText(
+              item.value,
+              x + 9,
+              y + 20,
+              columnWidth - 18,
+              7.5,
+              true,
+              COLORS.black
+            );
+          }
+        );
+
+        /*
+         * Fill missing columns.
+         */
+
+        if (rowFields.length < 3) {
+          for (
+            let column =
+              rowFields.length;
+            column < 3;
+            column++
+          ) {
+            const x =
+              LEFT +
+              column *
+                columnWidth;
+
+            doc
+              .rect(
+                x,
+                y,
+                columnWidth,
+                rowHeight
+              )
+              .fill(
+                COLORS.lighterGray
+              );
+
+            doc
+              .rect(
+                x,
+                y,
+                columnWidth,
+                rowHeight
+              )
+              .lineWidth(0.5)
+              .strokeColor(
+                COLORS.border
+              )
+              .stroke();
+          }
+        }
+
+        y += rowHeight;
+      }
+
+      return y;
+    };
+
+    /* =====================================================
+       STATUS BOX
+    ===================================================== */
+
+    const drawStatusBox = (
+      label: string,
+      value: unknown,
+      x: number,
+      y: number,
+      width: number
+    ) => {
+      const normalized =
+        String(value || '')
+          .toLowerCase();
+
+      let background =
+        COLORS.softGreen;
+
+      let foreground =
+        COLORS.success;
+
+      if (
+        normalized.includes('rejected') ||
+        normalized.includes('declined')
+      ) {
+        background =
+          COLORS.softRed;
+
+        foreground =
+          COLORS.danger;
+      } else if (
+        normalized.includes('pending') ||
+        normalized.includes('awaiting')
+      ) {
+        background =
+          COLORS.softGold;
+
+        foreground =
+          COLORS.warning;
+      } else if (
+        normalized.includes('processing')
+      ) {
+        background =
+          COLORS.softBlue;
+
+        foreground =
+          COLORS.blue;
+      }
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          54,
+          5
+        )
+        .fill(background);
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          54,
+          5
+        )
+        .lineWidth(0.7)
+        .strokeColor(
+          COLORS.border
+        )
+        .stroke();
+
+      doc
+        .rect(
+          x,
+          y,
+          width,
+          4
+        )
+        .fill(COLORS.gold);
+
+      drawText(
+        label.toUpperCase(),
+        x + 10,
+        y + 10,
+        width - 20,
+        6,
+        true,
+        COLORS.gray
+      );
+
+      drawText(
+        value,
+        x + 10,
+        y + 25,
+        width - 20,
+        8.5,
+        true,
+        foreground
+      );
+    };
+
+    /* =====================================================
+       APPLICATION SUMMARY
+    ===================================================== */
+
+    const drawApplicationSummary = (
+      startY: number
+    ) => {
+      const gap = 10;
+
+      const width =
+        (CONTENT_WIDTH -
+          gap * 2) /
+        3;
+
+      drawStatusBox(
+        'Application Number',
+        application.application_number,
+        LEFT,
+        startY,
+        width
+      );
+
+      drawStatusBox(
+        'Application Status',
+        application.application_status,
+        LEFT + width + gap,
+        startY,
+        width
+      );
+
+      drawStatusBox(
+        'Payment Status',
+        application.payment_status,
+        LEFT +
+          (width + gap) * 2,
+        startY,
+        width
+      );
+
+      return startY + 66;
+    };
+
+    /* =====================================================
+       PASSPORT PHOTO
+    ===================================================== */
+
+    const drawPassportPhoto = (
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    ) => {
+      /*
+       * Outer frame
+       */
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          height,
+          5
+        )
+        .fill(COLORS.white);
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          height,
+          5
+        )
+        .lineWidth(1)
+        .strokeColor(
+          COLORS.gold
+        )
+        .stroke();
+
+      /*
+       * Uploaded photo
+       */
+
+      if (passportPhotoBuffer) {
+        try {
+          doc.save();
+
+          /*
+           * Clip the photo to the
+           * passport-photo frame.
+           */
+
+          doc
+            .roundedRect(
+              x + 3,
+              y + 3,
+              width - 6,
+              height - 6,
+              3
+            )
+            .clip();
+
+          doc.image(
+            passportPhotoBuffer,
+            x + 3,
+            y + 3,
+            {
+              fit: [
+                width - 6,
+                height - 6,
+              ],
+              align: 'center',
+              valign: 'center',
+            }
+          );
+
+          doc.restore();
+
+          /*
+           * Photo label
+           */
+
+          drawText(
+            'PASSPORT PHOTO',
+            x,
+            y + height + 6,
+            width,
+            6,
+            true,
+            COLORS.gray,
+            'center'
+          );
+        } catch (error) {
+          console.error(
+            'Unable to render passport photo:',
+            error
+          );
+
+          drawPassportPlaceholder(
+            x,
+            y,
+            width,
+            height
+          );
+        }
+      } else {
+        drawPassportPlaceholder(
+          x,
+          y,
+          width,
+          height
+        );
+      }
+    };
+
+    /* =====================================================
+       PASSPORT PHOTO PLACEHOLDER
+    ===================================================== */
+
+    const drawPassportPlaceholder = (
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    ) => {
+      /*
+       * Dashed inner border
+       */
+
+      doc
+        .roundedRect(
+          x + 5,
+          y + 5,
+          width - 10,
+          height - 10,
+          3
+        )
+        .lineWidth(0.8)
+        .dash(3, {
+          space: 3,
+        })
+        .strokeColor(
+          COLORS.gold
+        )
+        .stroke();
+
+      doc.undash();
+
+      drawText(
+        'PASSPORT',
+        x + 5,
+        y + height / 2 - 16,
+        width - 10,
+        7,
+        true,
+        COLORS.gray,
+        'center'
+      );
+
+      drawText(
+        'PHOTO',
+        x + 5,
+        y + height / 2 - 3,
+        width - 10,
+        7,
+        true,
+        COLORS.gray,
+        'center'
+      );
+
+      drawText(
+        'NOT AVAILABLE',
+        x + 5,
+        y + height + 6,
+        width - 10,
+        6,
+        true,
+        COLORS.danger,
+        'center'
+      );
+    };
+
+    /* =====================================================
+       OFFICIAL USE FIELD
+    ===================================================== */
+
+    const drawOfficialField = (
       label: string,
       x: number,
       y: number,
-      lineStart: number,
-      lineEnd: number,
-      fontSize = 8.5,
-      value?: unknown
+      width: number
     ) => {
+      const height = 50;
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          height,
+          4
+        )
+        .fill(COLORS.white);
+
+      doc
+        .roundedRect(
+          x,
+          y,
+          width,
+          height,
+          4
+        )
+        .lineWidth(0.6)
+        .strokeColor(
+          COLORS.border
+        )
+        .stroke();
+
+      /*
+       * Gold accent
+       */
+
+      doc
+        .rect(
+          x,
+          y,
+          3,
+          height
+        )
+        .fill(COLORS.gold);
+
       drawText(
-        label,
-        x,
-        y,
-        lineStart - x,
-        fontSize,
-        true
+        label.toUpperCase(),
+        x + 9,
+        y + 8,
+        width - 18,
+        6,
+        true,
+        COLORS.gray
       );
 
       /*
-       * If a value exists, place it on
-       * the line.
+       * Blank writing area
        */
 
-      const valueText =
-        displayValue(value);
-
-      if (valueText) {
-        drawText(
-          valueText,
-          lineStart + 2,
-          y - 1,
-          lineEnd - lineStart - 4,
-          fontSize,
-          false
-        );
-      }
-
       drawLine(
-        lineStart,
-        y + 11,
-        lineEnd,
-        0.9
+        x + 9,
+        y + 36,
+        x + width - 9,
+        y + 36,
+        COLORS.border,
+        0.7
       );
     };
 
@@ -648,574 +1558,305 @@ export async function GET(
 
     drawHeader();
 
-    drawFormTitle();
+    drawDocumentTitle(
+      'STUDENT APPLICATION FORM',
+      'OFFICIAL APPLICATION RECORD'
+    );
+
+    let y =
+      CONTENT_TOP + 48;
+
+    /*
+     * Application summary
+     */
+
+    y =
+      drawApplicationSummary(y);
+
+    y += 8;
 
     /* =====================================================
-       PERSONAL DATA
+       PERSONAL INFORMATION WITH PHOTO
     ===================================================== */
 
-    const personalY = 348;
-
-    sectionHeader(
-      'PERSONAL DATA',
-      personalY
-    );
+    y =
+      drawSection(
+        '1. PERSONAL INFORMATION',
+        y
+      );
 
     /*
-     * Outer personal-data box.
+     * Photo dimensions
+     */
+
+    const photoWidth = 82;
+    const photoHeight = 104;
+
+    const photoX =
+      RIGHT - photoWidth - 4;
+
+    const personalStartY =
+      y;
+
+    /*
+     * Personal table width.
      *
-     * The uploaded form places the section
-     * header and fields inside one bordered
-     * rectangular area.
+     * Leave room on the right for
+     * the passport photograph.
      */
 
-    drawBox(
-      LEFT,
-      personalY,
-      CONTENT_WIDTH,
-      295
+    const photoGap = 12;
+
+    const personalTableWidth =
+      CONTENT_WIDTH -
+      photoWidth -
+      photoGap;
+
+    const personalColumnWidth =
+      personalTableWidth / 3;
+
+    const personalRowHeight = 42;
+
+    const personalFields: Field[] =
+      [
+        {
+          label: 'Surname',
+          value:
+            application.surname,
+        },
+        {
+          label: 'Middle Name',
+          value:
+            application.middle_name,
+        },
+        {
+          label: 'First Name',
+          value:
+            application.first_name,
+        },
+        {
+          label: 'Date of Birth',
+          value:
+            formatDate(
+              application.date_of_birth
+            ),
+        },
+        {
+          label: 'Gender',
+          value:
+            application.gender,
+        },
+        {
+          label: 'Nationality',
+          value:
+            application.nationality,
+        },
+        {
+          label: 'Country',
+          value:
+            application.country,
+        },
+        {
+          label: 'ID / Passport Number',
+          value:
+            application.id_passport_number,
+        },
+        {
+          label: 'Marital Status',
+          value:
+            application.marital_status,
+        },
+      ];
+
+    /*
+     * Draw personal information
+     * in three columns beside photo.
+     */
+
+    for (
+      let i = 0;
+      i < personalFields.length;
+      i += 3
+    ) {
+      const rowFields =
+        personalFields.slice(
+          i,
+          i + 3
+        );
+
+      rowFields.forEach(
+        (item, column) => {
+          const x =
+            LEFT +
+            column *
+              personalColumnWidth;
+
+          const row =
+            Math.floor(i / 3);
+
+          const fieldY =
+            personalStartY +
+            row *
+              personalRowHeight;
+
+          const background =
+            row % 2 === 0
+              ? COLORS.white
+              : COLORS.lighterGray;
+
+          doc
+            .rect(
+              x,
+              fieldY,
+              personalColumnWidth,
+              personalRowHeight
+            )
+            .fill(background);
+
+          doc
+            .rect(
+              x,
+              fieldY,
+              personalColumnWidth,
+              personalRowHeight
+            )
+            .lineWidth(0.5)
+            .strokeColor(
+              COLORS.border
+            )
+            .stroke();
+
+          drawText(
+            item.label.toUpperCase(),
+            x + 8,
+            fieldY + 7,
+            personalColumnWidth - 16,
+            5.8,
+            true,
+            COLORS.gray
+          );
+
+          drawText(
+            item.value,
+            x + 8,
+            fieldY + 20,
+            personalColumnWidth - 16,
+            7.2,
+            true,
+            COLORS.black
+          );
+        }
+      );
+    }
+
+    /*
+     * Draw passport photo.
+     */
+
+    drawPassportPhoto(
+      photoX,
+      personalStartY,
+      photoWidth,
+      photoHeight
     );
 
     /*
-     * Re-draw header border so it remains
-     * visually consistent.
+     * Move below personal information.
      */
 
-    drawBox(
-      LEFT,
-      personalY,
-      CONTENT_WIDTH,
-      26
-    );
-
-    /*
-     * Name row
-     */
-
-    const nameY = personalY + 51;
-
-    labelLine(
-      'Surname',
-      51,
-      nameY,
-      118,
-      210,
-      8.5,
-      application.surname
-    );
-
-    labelLine(
-      'Middle Name',
-      210,
-      nameY,
-      285,
-      398,
-      8.5,
-      application.middle_name
-    );
-
-    labelLine(
-      'First',
-      398,
-      nameY,
-      425,
-      515,
-      8.5,
-      application.first_name
-    );
-
-    /*
-     * Date of birth / gender
-     */
-
-    const dobY =
-      personalY + 76;
-
-    labelLine(
-      'Date of Birth:',
-      51,
-      dobY,
-      112,
-      190,
-      8.5,
-      formatDate(
-        application.date_of_birth
-      )
-    );
-
-    drawText(
-      'Gender: (Tick)',
-      195,
-      dobY,
-      72,
-      8.5,
-      true
-    );
-
-    drawText(
-      `Male [ ${
-        String(
-          application.gender || ''
-        ).toLowerCase() ===
-        'male'
-          ? 'X'
-          : ' '
-      } ]`,
-      270,
-      dobY,
-      65,
-      8.5,
-      false
-    );
-
-    drawText(
-      `Female [ ${
-        String(
-          application.gender || ''
-        ).toLowerCase() ===
-        'female'
-          ? 'X'
-          : ' '
-      } ]`,
-      337,
-      dobY,
-      75,
-      8.5,
-      false
-    );
-
-    /*
-     * Date labels
-     */
-
-    drawText(
-      '(Date)  (Month)  (Year)',
-      58,
-      dobY + 26,
-      145,
-      6.5,
-      false
-    );
-
-    /*
-     * Nationality / Country / ID
-     */
-
-    const nationalityY =
-      personalY + 119;
-
-    labelLine(
-      'Nationality:',
-      51,
-      nationalityY,
-      120,
-      198,
-      8.5,
-      application.nationality
-    );
-
-    labelLine(
-      'Country:',
-      198,
-      nationalityY,
-      253,
-      360,
-      8.5,
-      application.country
-    );
-
-    labelLine(
-      'I.D/Passport No:',
-      360,
-      nationalityY,
-      447,
-      515,
-      8.5,
-      application.id_passport_number
-    );
-
-    /*
-     * Marital status
-     */
-
-    const maritalY =
-      personalY + 144;
-
-    drawText(
-      'Marital Status:',
-      51,
-      maritalY,
-      85,
-      8.5,
-      true
-    );
-
-    const marital =
-      String(
-        application.marital_status ||
-        ''
-      ).toLowerCase();
-
-    drawText(
-      `Single [ ${
-        marital === 'single'
-          ? 'X'
-          : ' '
-      } ]`,
-      132,
-      maritalY,
-      75,
-      8.5,
-      false
-    );
-
-    drawText(
-      `Married [ ${
-        marital === 'married'
-          ? 'X'
-          : ' '
-      } ]`,
-      207,
-      maritalY,
-      82,
-      8.5,
-      false
-    );
-
-    drawText(
-      'Other(Specify)',
-      290,
-      maritalY,
-      75,
-      8.5,
-      true
-    );
-
-    drawLine(
-      366,
-      maritalY + 11,
-      485,
-      0.9
-    );
-
-    /*
-     * Religious affiliation
-     *
-     * No corresponding field exists in
-     * the current application query,
-     * therefore this remains blank.
-     */
-
-    const religionY =
-      personalY + 170;
-
-    drawText(
-      'Religious Affiliation',
-      51,
-      religionY,
-      125,
-      8.5,
-      true
-    );
-
-    drawText(
-      '(Christian, Muslim, Hindu, Specify Other)',
-      174,
-      religionY,
-      225,
-      8.5,
-      false
-    );
-
-    drawLine(
-      401,
-      religionY + 11,
-      515,
-      0.9
-    );
+    y =
+      personalStartY +
+      Math.ceil(
+        personalFields.length / 3
+      ) *
+        personalRowHeight +
+      10;
 
     /* =====================================================
-       CONTACT DETAILS
+       CONTACT INFORMATION
     ===================================================== */
 
-    const contactY =
-      personalY + 195;
+    y =
+      drawSection(
+        '2. CONTACT INFORMATION',
+        y
+      );
 
-    sectionHeader(
-      'CONTACT DETAILS',
-      contactY
-    );
+    y =
+      drawThreeColumnTable(
+        [
+          {
+            label: 'Mobile Number',
+            value:
+              application.mobile,
+          },
+          {
+            label: 'Email Address',
+            value:
+              application.email,
+          },
+          {
+            label: 'Town',
+            value:
+              application.town,
+          },
+          {
+            label: 'County',
+            value:
+              application.county,
+          },
+          {
+            label: 'Postal Address',
+            value:
+              application.postal_address,
+          },
+          {
+            label: 'Postal Code',
+            value:
+              application.postal_code,
+          },
+        ],
+        y
+      );
 
-    /*
-     * Contact section outer border.
-     */
-
-    drawBox(
-      LEFT,
-      contactY,
-      CONTENT_WIDTH,
-      126
-    );
-
-    drawBox(
-      LEFT,
-      contactY,
-      CONTENT_WIDTH,
-      26
-    );
-
-    /*
-     * Postal address / postal code
-     */
-
-    const postalY =
-      contactY + 39;
-
-    labelLine(
-      'Postal Address:',
-      51,
-      postalY,
-      137,
-      315,
-      8.5,
-      application.postal_address
-    );
-
-    labelLine(
-      'Postal code:',
-      315,
-      postalY,
-      382,
-      445,
-      8.5,
-      application.postal_code
-    );
-
-    /*
-     * Town / County
-     */
-
-    const townY =
-      contactY + 64;
-
-    labelLine(
-      'Town:',
-      51,
-      townY,
-      89,
-      250,
-      8.5,
-      application.town
-    );
-
-    labelLine(
-      'County:',
-      250,
-      townY,
-      305,
-      420,
-      8.5,
-      application.county
-    );
-
-    /*
-     * Mobile / Home office
-     */
-
-    const phoneY =
-      contactY + 89;
-
-    labelLine(
-      'Mobile:',
-      51,
-      phoneY,
-      98,
-      255,
-      8.5,
-      application.mobile
-    );
-
-    labelLine(
-      'Home/Office Tel Number:',
-      255,
-      phoneY,
-      388,
-      515,
-      8.5
-    );
-
-    /*
-     * Email
-     */
-
-    const emailY =
-      contactY + 114;
-
-    labelLine(
-      'Email:',
-      51,
-      emailY,
-      90,
-      390,
-      8.5,
-      application.email
-    );
+    y += 10;
 
     /* =====================================================
-       PARENT / GUARDIAN / NEXT OF KIN
+       GUARDIAN
     ===================================================== */
 
-    const guardianY =
-      contactY + 126;
+    y =
+      drawSection(
+        '3. PARENT / GUARDIAN / NEXT OF KIN',
+        y
+      );
 
-    sectionHeader(
-      "PARENT’S/GUARDIANS/NEXTOF KIN’S INFORMATION",
-      guardianY
-    );
-
-    /*
-     * Outer box.
-     *
-     * The uploaded form has this section
-     * extending to the bottom of page 1.
-     */
-
-    drawBox(
-      LEFT,
-      guardianY,
-      CONTENT_WIDTH,
-      150
-    );
-
-    drawBox(
-      LEFT,
-      guardianY,
-      CONTENT_WIDTH,
-      26
-    );
-
-    /*
-     * Name / relationship
-     */
-
-    const guardianNameY =
-      guardianY + 39;
-
-    labelLine(
-      'Name:',
-      51,
-      guardianNameY,
-      88,
-      270,
-      8.5,
-      application.guardian_name
-    );
-
-    labelLine(
-      'Relationship:',
-      270,
-      guardianNameY,
-      350,
-      435,
-      8.5,
-      application.guardian_relationship
-    );
-
-    /*
-     * Postal address
-     *
-     * The current database query does not
-     * expose guardian postal details.
-     */
-
-    const guardianPostalY =
-      guardianY + 64;
-
-    labelLine(
-      'Postal Address:',
-      51,
-      guardianPostalY,
-      137,
-      315,
-      8.5
-    );
-
-    labelLine(
-      'Postal code:',
-      315,
-      guardianPostalY,
-      382,
-      445,
-      8.5
-    );
-
-    /*
-     * Town / County
-     */
-
-    const guardianTownY =
-      guardianY + 89;
-
-    labelLine(
-      'Town:',
-      51,
-      guardianTownY,
-      89,
-      250,
-      8.5
-    );
-
-    labelLine(
-      'County:',
-      250,
-      guardianTownY,
-      305,
-      420,
-      8.5
-    );
-
-    /*
-     * Mobile / Home Office
-     */
-
-    const guardianPhoneY =
-      guardianY + 114;
-
-    labelLine(
-      'Mobile:',
-      51,
-      guardianPhoneY,
-      98,
-      255,
-      8.5,
-      application.guardian_mobile
-    );
-
-    labelLine(
-      'Home/Office Tel Number:',
-      255,
-      guardianPhoneY,
-      388,
-      515,
-      8.5
-    );
-
-    /*
-     * Email
-     */
-
-    const guardianEmailY =
-      guardianY + 139;
-
-    labelLine(
-      'Email:',
-      51,
-      guardianEmailY,
-      90,
-      390,
-      8.5,
-      application.guardian_email
-    );
+    y =
+      drawThreeColumnTable(
+        [
+          {
+            label: 'Name',
+            value:
+              application.guardian_name,
+          },
+          {
+            label: 'Relationship',
+            value:
+              application.guardian_relationship,
+          },
+          {
+            label: 'Mobile Number',
+            value:
+              application.guardian_mobile,
+          },
+          {
+            label: 'Email Address',
+            value:
+              application.guardian_email,
+          },
+        ],
+        y
+      );
 
     /* =====================================================
        PAGE 2
@@ -1223,273 +1864,734 @@ export async function GET(
 
     doc.addPage();
 
-    /*
-     * The original second page begins
-     * directly with FINANCIAL DATA.
-     *
-     * No repeated college header is added
-     * because the uploaded document does
-     * not repeat it on page 2.
-     */
+    drawHeader();
+
+    drawDocumentTitle(
+      'STUDENT APPLICATION FORM',
+      'ACADEMIC & ADMISSION INFORMATION'
+    );
+
+    y =
+      CONTENT_TOP + 48;
 
     /* =====================================================
-       FINANCIAL DATA
+       ACADEMIC INFORMATION
     ===================================================== */
 
-    const financialY = 34;
+    y =
+      drawSection(
+        '4. ACADEMIC INFORMATION',
+        y
+      );
 
-    sectionHeader(
-      'FINANCIAL DATA',
-      financialY
-    );
+    y =
+      drawThreeColumnTable(
+        [
+          {
+            label: 'KCSE Index Number',
+            value:
+              application.kcse_index,
+          },
+          {
+            label: 'KCSE Year',
+            value:
+              application.kcse_year,
+          },
+          {
+            label: 'KCSE Mean Grade',
+            value:
+              application.kcse_mean_grade,
+          },
+          {
+            label: 'English Grade',
+            value:
+              application.english_grade,
+          },
+          {
+            label: 'Kiswahili Grade',
+            value:
+              application.kiswahili_grade,
+          },
+          {
+            label: 'Biology Grade',
+            value:
+              application.biology_grade,
+          },
+          {
+            label: 'Chemistry Grade',
+            value:
+              application.chemistry_grade,
+          },
+          {
+            label: 'Physics Grade',
+            value:
+              application.physics_grade,
+          },
+          {
+            label: 'Mathematics Grade',
+            value:
+              application.mathematics_grade,
+          },
+        ],
+        y
+      );
 
-    /*
-     * Outer financial box
-     */
-
-    drawBox(
-      LEFT,
-      financialY,
-      CONTENT_WIDTH,
-      226
-    );
-
-    drawBox(
-      LEFT,
-      financialY,
-      CONTENT_WIDTH,
-      26
-    );
-
-    /*
-     * Sponsor question
-     */
-
-    const sponsorQuestionY =
-      financialY + 39;
-
-    drawText(
-      'Who will sponsor your trainings at SMTC? (Tick)',
-      51,
-      sponsorQuestionY,
-      450,
-      8.5,
-      true
-    );
-
-    /*
-     * Sponsor type
-     */
-
-    const sponsorType =
-      String(
-        application.sponsor_type ||
-        ''
-      ).toLowerCase();
-
-    const sponsorY =
-      financialY + 64;
-
-    drawText(
-      `Self [ ${
-        sponsorType === 'self'
-          ? 'X'
-          : ' '
-      } ]`,
-      51,
-      sponsorY,
-      60,
-      8.5
-    );
-
-    drawText(
-      `Parent [ ${
-        sponsorType === 'parent'
-          ? 'X'
-          : ' '
-      } ]`,
-      112,
-      sponsorY,
-      70,
-      8.5
-    );
-
-    drawText(
-      `Guardian [ ${
-        sponsorType === 'guardian'
-          ? 'X'
-          : ' '
-      } ]`,
-      183,
-      sponsorY,
-      85,
-      8.5
-    );
-
-    drawText(
-      `Sponsor [ ${
-        sponsorType === 'sponsor'
-          ? 'X'
-          : ' '
-      } ]`,
-      269,
-      sponsorY,
-      80,
-      8.5
-    );
-
-    /*
-     * SELF/PARENT/GUARDIAN/SPONSOR INFORMATION
-     */
-
-    const sponsorInfoY =
-      financialY + 90;
-
-    drawText(
-      'SELF/PARENT/GUARDIAN/SPONSOR’S INFORMATION',
-      51,
-      sponsorInfoY,
-      470,
-      8.5,
-      true
-    );
-
-    /*
-     * Name / Relationship
-     */
-
-    const sponsorNameY =
-      financialY + 115;
-
-    labelLine(
-      'Name:',
-      51,
-      sponsorNameY,
-      88,
-      270,
-      8.5,
-      application.sponsor_name
-    );
-
-    labelLine(
-      'Relationship:',
-      270,
-      sponsorNameY,
-      350,
-      435,
-      8.5,
-      application.sponsor_relationship
-    );
-
-    /*
-     * Postal Address / Postal Code
-     *
-     * These fields are not currently
-     * available in the database query.
-     */
-
-    const sponsorPostalY =
-      financialY + 140;
-
-    labelLine(
-      'Postal Address:',
-      51,
-      sponsorPostalY,
-      137,
-      315,
-      8.5
-    );
-
-    labelLine(
-      'Postal code:',
-      315,
-      sponsorPostalY,
-      382,
-      445,
-      8.5
-    );
-
-    /*
-     * Town / Country
-     */
-
-    const sponsorTownY =
-      financialY + 165;
-
-    labelLine(
-      'Town:',
-      51,
-      sponsorTownY,
-      89,
-      250,
-      8.5
-    );
-
-    labelLine(
-      'Country:',
-      250,
-      sponsorTownY,
-      305,
-      420,
-      8.5
-    );
-
-    /*
-     * Mobile / Home Office
-     */
-
-    const sponsorPhoneY =
-      financialY + 190;
-
-    labelLine(
-      'Mobile:',
-      51,
-      sponsorPhoneY,
-      98,
-      255,
-      8.5,
-      application.sponsor_mobile
-    );
-
-    labelLine(
-      'Home/Office Tel Number:',
-      255,
-      sponsorPhoneY,
-      388,
-      515,
-      8.5
-    );
-
-    /*
-     * Email
-     */
-
-    const sponsorEmailY =
-      financialY + 215;
-
-    labelLine(
-      'Email:',
-      51,
-      sponsorEmailY,
-      90,
-      390,
-      8.5,
-      application.sponsor_email
-    );
+    y += 10;
 
     /* =====================================================
-       PASSPORT PHOTO INSTRUCTION
+       PREVIOUS EDUCATION
     ===================================================== */
 
+    y =
+      drawSection(
+        '5. PREVIOUS EDUCATION',
+        y
+      );
+
+    y =
+      drawTwoColumnTable(
+        [
+          {
+            label:
+              'Previous Institution',
+            value:
+              application.previous_institution,
+          },
+          {
+            label:
+              'Highest Qualification',
+            value:
+              application.highest_qualification,
+          },
+        ],
+        y
+      );
+
+    y += 10;
+
+    /* =====================================================
+       COURSE & INTAKE
+    ===================================================== */
+
+    y =
+      drawSection(
+        '6. COURSE & INTAKE',
+        y,
+        COLORS.green
+      );
+
+    y =
+      drawTwoColumnTable(
+        [
+          {
+            label:
+              'Selected Course',
+            value:
+              application.course,
+          },
+          {
+            label:
+              'Intake',
+            value:
+              application.intake,
+          },
+        ],
+        y
+      );
+
+    y += 10;
+
+    /* =====================================================
+       SPONSOR
+    ===================================================== */
+
+    y =
+      drawSection(
+        '7. SPONSOR INFORMATION',
+        y
+      );
+
+    y =
+      drawThreeColumnTable(
+        [
+          {
+            label: 'Sponsor Type',
+            value:
+              application.sponsor_type,
+          },
+          {
+            label: 'Sponsor Name',
+            value:
+              application.sponsor_name,
+          },
+          {
+            label: 'Relationship',
+            value:
+              application.sponsor_relationship,
+          },
+          {
+            label: 'Mobile Number',
+            value:
+              application.sponsor_mobile,
+          },
+          {
+            label: 'Email Address',
+            value:
+              application.sponsor_email,
+          },
+        ],
+        y
+      );
+
+    y += 10;
+
+    /* =====================================================
+       PAYMENT
+    ===================================================== */
+
+    y =
+      drawSection(
+        '8. APPLICATION & PAYMENT',
+        y,
+        COLORS.green
+      );
+
+    y =
+      drawThreeColumnTable(
+        [
+          {
+            label:
+              'Application Fee',
+            value:
+              formatCurrency(
+                application.application_fee
+              ),
+          },
+          {
+            label:
+              'Payment Status',
+            value:
+              application.payment_status,
+          },
+          {
+            label:
+              'Application Status',
+            value:
+              application.application_status,
+          },
+          {
+            label:
+              'Application Date',
+            value:
+              formatDate(
+                application.created_at
+              ),
+          },
+          {
+            label:
+              'Declaration',
+            value:
+              application.declaration
+                ? 'Accepted'
+                : 'Not Accepted',
+          },
+        ],
+        y
+      );
+
+    /* =====================================================
+       PAGE 3
+    ===================================================== */
+
+    doc.addPage();
+
+    drawHeader();
+
+    drawDocumentTitle(
+      'APPLICATION REVIEW',
+      'DECLARATION & OFFICIAL USE'
+    );
+
+    y =
+      CONTENT_TOP + 48;
+
+    /* =====================================================
+       APPLICANT PROFILE
+    ===================================================== */
+
+    y =
+      drawSection(
+        '9. APPLICANT PROFILE',
+        y
+      );
+
+    /*
+     * Profile box
+     */
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        105,
+        6
+      )
+      .fill(
+        COLORS.softGreen
+      );
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        105,
+        6
+      )
+      .lineWidth(0.8)
+      .strokeColor(
+        COLORS.border
+      )
+      .stroke();
+
+    /*
+     * Gold accent
+     */
+
+    doc
+      .rect(
+        LEFT,
+        y,
+        6,
+        105
+      )
+      .fill(COLORS.gold);
+
     drawText(
-      'ATTACH PASSPORT PHOTO ON THIS APPLICATION FORM',
-      45,
-      280,
-      CONTENT_WIDTH,
-      9.5,
+      studentName,
+      LEFT + 20,
+      y + 18,
+      CONTENT_WIDTH - 40,
+      17,
       true,
+      COLORS.deepGreen,
       'center'
     );
+
+    drawText(
+      `Application Number: ${displayValue(
+        application.application_number
+      )}`,
+      LEFT + 20,
+      y + 47,
+      CONTENT_WIDTH - 40,
+      8,
+      true,
+      COLORS.darkGray,
+      'center'
+    );
+
+    drawText(
+      displayValue(
+        application.course
+      ),
+      LEFT + 20,
+      y + 65,
+      CONTENT_WIDTH - 40,
+      8,
+      true,
+      COLORS.green,
+      'center'
+    );
+
+    drawText(
+      `Intake: ${displayValue(
+        application.intake
+      )}`,
+      LEFT + 20,
+      y + 82,
+      CONTENT_WIDTH - 40,
+      7.5,
+      false,
+      COLORS.gray,
+      'center'
+    );
+
+    y += 120;
+
+    /* =====================================================
+       APPLICATION STATUS
+    ===================================================== */
+
+    y =
+      drawSection(
+        '10. APPLICATION STATUS',
+        y,
+        COLORS.green
+      );
+
+    const statusGap = 10;
+
+    const statusWidth =
+      (CONTENT_WIDTH -
+        statusGap * 2) /
+      3;
+
+    drawStatusBox(
+      'Application Status',
+      application.application_status,
+      LEFT,
+      y,
+      statusWidth
+    );
+
+    drawStatusBox(
+      'Payment Status',
+      application.payment_status,
+      LEFT +
+        statusWidth +
+        statusGap,
+      y,
+      statusWidth
+    );
+
+    drawStatusBox(
+      'Application Fee',
+      formatCurrency(
+        application.application_fee
+      ),
+      LEFT +
+        (statusWidth +
+          statusGap) *
+          2,
+      y,
+      statusWidth
+    );
+
+    y += 70;
+
+    /* =====================================================
+       DECLARATION
+    ===================================================== */
+
+    y =
+      drawSection(
+        '11. DECLARATION',
+        y
+      );
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        145,
+        6
+      )
+      .fill(
+        COLORS.lighterGray
+      );
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        145,
+        6
+      )
+      .lineWidth(0.7)
+      .strokeColor(
+        COLORS.border
+      )
+      .stroke();
+
+    drawText(
+      'I declare that the information provided in this application is true, complete and accurate to the best of my knowledge. I understand that providing false or misleading information may affect my admission or continued enrollment at Shifah Medical Training College.',
+      LEFT + 18,
+      y + 18,
+      CONTENT_WIDTH - 36,
+      8.5,
+      false,
+      COLORS.darkGray
+    );
+
+    const declarationAccepted =
+      Boolean(
+        application.declaration
+      );
+
+    /*
+     * Declaration status badge
+     */
+
+    doc
+      .roundedRect(
+        LEFT + 18,
+        y + 90,
+        190,
+        30,
+        4
+      )
+      .fill(
+        declarationAccepted
+          ? COLORS.softGreen
+          : COLORS.softRed
+      );
+
+    doc
+      .roundedRect(
+        LEFT + 18,
+        y + 90,
+        190,
+        30,
+        4
+      )
+      .lineWidth(0.7)
+      .strokeColor(
+        declarationAccepted
+          ? COLORS.success
+          : COLORS.danger
+      )
+      .stroke();
+
+    drawText(
+      declarationAccepted
+        ? 'DECLARATION ACCEPTED'
+        : 'DECLARATION NOT ACCEPTED',
+      LEFT + 28,
+      y + 100,
+      170,
+      7,
+      true,
+      declarationAccepted
+        ? COLORS.success
+        : COLORS.danger,
+      'center'
+    );
+
+    drawText(
+      `Submitted: ${formatDate(
+        application.created_at
+      )}`,
+      LEFT + 225,
+      y + 101,
+      265,
+      7.5,
+      false,
+      COLORS.gray,
+      'right'
+    );
+
+    y += 165;
+
+    /* =====================================================
+       OFFICIAL USE
+    ===================================================== */
+
+    y =
+      drawSection(
+        '12. FOR OFFICIAL USE ONLY',
+        y,
+        COLORS.green
+      );
+
+    const officialHeight = 155;
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        officialHeight,
+        6
+      )
+      .fill(COLORS.white);
+
+    doc
+      .roundedRect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        officialHeight,
+        6
+      )
+      .lineWidth(0.8)
+      .strokeColor(
+        COLORS.border
+      )
+      .stroke();
+
+    /*
+     * Gold top accent
+     */
+
+    doc
+      .rect(
+        LEFT,
+        y,
+        CONTENT_WIDTH,
+        4
+      )
+      .fill(COLORS.gold);
+
+    /*
+     * Official fields
+     */
+
+    const officialGap = 10;
+
+    const officialWidth =
+      (CONTENT_WIDTH -
+        officialGap * 2 -
+        24) /
+      3;
+
+    drawOfficialField(
+      'Reviewed By',
+      LEFT + 12,
+      y + 18,
+      officialWidth
+    );
+
+    drawOfficialField(
+      'Admission Decision',
+      LEFT +
+        12 +
+        officialWidth +
+        officialGap,
+      y + 18,
+      officialWidth
+    );
+
+    drawOfficialField(
+      'Date',
+      LEFT +
+        12 +
+        (officialWidth +
+          officialGap) *
+          2,
+      y + 18,
+      officialWidth
+    );
+
+    /*
+     * Signature
+     */
+
+    drawText(
+      'AUTHORIZED SIGNATURE',
+      LEFT + 15,
+      y + 92,
+      180,
+      6.5,
+      true,
+      COLORS.gray
+    );
+
+    drawLine(
+      LEFT + 15,
+      y + 121,
+      LEFT + 195,
+      y + 121,
+      COLORS.darkGreen,
+      0.8
+    );
+
+    /*
+     * Stamp
+     */
+
+    drawText(
+      'OFFICIAL COLLEGE STAMP',
+      LEFT + 270,
+      y + 92,
+      220,
+      6.5,
+      true,
+      COLORS.gray,
+      'center'
+    );
+
+    doc
+      .circle(
+        LEFT + 380,
+        y + 122,
+        32
+      )
+      .lineWidth(1)
+      .strokeColor(
+        COLORS.gold
+      )
+      .stroke();
+
+    doc
+      .circle(
+        LEFT + 380,
+        y + 122,
+        25
+      )
+      .lineWidth(0.6)
+      .strokeColor(
+        COLORS.border
+      )
+      .stroke();
+
+    drawText(
+      'STAMP',
+      LEFT + 350,
+      y + 118,
+      60,
+      5.5,
+      true,
+      COLORS.muted,
+      'center'
+    );
+
+    /* =====================================================
+       SYSTEM NOTICE
+    ===================================================== */
+
+    drawText(
+      'This document contains information submitted by the applicant through the Shifah Medical Training College online application system.',
+      LEFT,
+      CONTENT_BOTTOM - 20,
+      CONTENT_WIDTH,
+      6.2,
+      false,
+      COLORS.gray,
+      'center'
+    );
+
+    /* =====================================================
+       FOOTER FOR ALL PAGES
+    ===================================================== */
+
+    const range =
+      doc.bufferedPageRange();
+
+    const totalPages =
+      range.count;
+
+    for (
+      let page = range.start;
+      page <
+      range.start + range.count;
+      page++
+    ) {
+      doc.switchToPage(page);
+
+      const pageNumber =
+        page -
+          range.start +
+        1;
+
+      drawFooter(
+        pageNumber,
+        totalPages
+      );
+    }
 
     /* =====================================================
        FINISH PDF
@@ -1501,27 +2603,17 @@ export async function GET(
       await pdfPromise;
 
     /* =====================================================
-       SAFE FILE NAME
+       FILE NAME
     ===================================================== */
 
-    const applicantName = [
-      application.first_name,
-      application.middle_name,
-      application.surname,
-    ]
-      .filter(Boolean)
-      .join('-')
-      .replace(
-        /[^a-zA-Z0-9_-]/g,
-        '_'
+    const applicationNumber =
+      safeFileName(
+        application.application_number ||
+          applicationId
       );
 
-    const safeFileName =
-      applicantName ||
-      `Application-${applicationId}`;
-
     /* =====================================================
-       RETURN PDF
+       RESPONSE
     ===================================================== */
 
     return new NextResponse(
@@ -1534,7 +2626,7 @@ export async function GET(
             'application/pdf',
 
           'Content-Disposition':
-            `attachment; filename="SMTC-Application-${safeFileName}.pdf"`,
+            `attachment; filename="SMTC-Application-${applicationNumber}.pdf"`,
 
           'Content-Length':
             String(pdf.length),
@@ -1542,9 +2634,11 @@ export async function GET(
           'Cache-Control':
             'no-store, no-cache, must-revalidate',
 
-          Pragma: 'no-cache',
+          Pragma:
+            'no-cache',
 
-          Expires: '0',
+          Expires:
+            '0',
         },
       }
     );
@@ -1554,7 +2648,7 @@ export async function GET(
     );
 
     console.error(
-      'APPLICATION PDF GENERATION ERROR'
+      'SMTC APPLICATION PDF ERROR'
     );
 
     console.error(
