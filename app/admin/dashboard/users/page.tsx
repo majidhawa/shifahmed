@@ -15,6 +15,8 @@ import {
   Trash2,
   Edit3,
   X,
+  BookOpen,
+  Check,
 } from 'lucide-react';
 
 /* =========================================================
@@ -35,6 +37,18 @@ type User = {
   active: boolean;
   created_at: string;
   updated_at?: string;
+  program_ids?: number[];
+  programs?: Program[];
+};
+
+type Program = {
+  id: number;
+  name: string;
+  code: string | null;
+  description?: string | null;
+  duration?: string | null;
+  level?: string | null;
+  status?: string | null;
 };
 
 type FormData = {
@@ -43,6 +57,7 @@ type FormData = {
   phone: string;
   password: string;
   role: UserRole;
+  programIds: number[];
 };
 
 const initialForm: FormData = {
@@ -51,6 +66,7 @@ const initialForm: FormData = {
   phone: '',
   password: '',
   role: 'lecturer',
+  programIds: [],
 };
 
 /* =========================================================
@@ -61,7 +77,13 @@ export default function ManageUsersPage() {
   const [users, setUsers] =
     useState<User[]>([]);
 
+  const [programs, setPrograms] =
+    useState<Program[]>([]);
+
   const [loading, setLoading] =
+    useState(true);
+
+  const [loadingPrograms, setLoadingPrograms] =
     useState(true);
 
   const [saving, setSaving] =
@@ -138,11 +160,63 @@ export default function ManageUsersPage() {
   }
 
   /* =====================================================
+     LOAD PROGRAMS
+  ===================================================== */
+
+  async function loadPrograms() {
+    try {
+      setLoadingPrograms(true);
+
+      const response =
+        await fetch(
+          '/api/admin/users/programs',
+          {
+            method: 'GET',
+            cache: 'no-store',
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        throw new Error(
+          data.message ||
+            'Unable to load courses.'
+        );
+      }
+
+      setPrograms(
+        Array.isArray(data.programs)
+          ? data.programs
+          : []
+      );
+    } catch (error) {
+      console.error(
+        'LOAD PROGRAMS ERROR:',
+        error
+      );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load courses.'
+      );
+    } finally {
+      setLoadingPrograms(false);
+    }
+  }
+
+  /* =====================================================
      INITIAL LOAD
   ===================================================== */
 
   useEffect(() => {
     loadUsers();
+    loadPrograms();
   }, []);
 
   /* =====================================================
@@ -151,6 +225,7 @@ export default function ManageUsersPage() {
 
   function openAddModal() {
     setEditingUser(null);
+
     setForm({
       ...initialForm,
     });
@@ -175,6 +250,14 @@ export default function ManageUsersPage() {
       phone: user.phone || '',
       password: '',
       role: user.role,
+      programIds:
+        Array.isArray(
+          user.program_ids
+        )
+          ? user.program_ids.map(
+              Number
+            )
+          : [],
     });
 
     setError('');
@@ -187,7 +270,9 @@ export default function ManageUsersPage() {
   ===================================================== */
 
   function closeModal() {
-    if (saving) return;
+    if (saving) {
+      return;
+    }
 
     setShowModal(false);
     setEditingUser(null);
@@ -206,12 +291,67 @@ export default function ManageUsersPage() {
 
   function updateForm(
     field: keyof FormData,
-    value: string
+    value:
+      | string
+      | number[]
   ) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setForm(
+      (current) => ({
+        ...current,
+        [field]: value,
+      })
+    );
+  }
+
+  /* =====================================================
+     TOGGLE COURSE
+  ===================================================== */
+
+  function toggleProgram(
+    programId: number
+  ) {
+    setForm(
+      (current) => {
+        const exists =
+          current.programIds.includes(
+            programId
+          );
+
+        return {
+          ...current,
+
+          programIds: exists
+            ? current.programIds.filter(
+                (id) =>
+                  id !== programId
+              )
+            : [
+                ...current.programIds,
+                programId,
+              ],
+        };
+      }
+    );
+  }
+
+  /* =====================================================
+     REMOVE COURSE
+  ===================================================== */
+
+  function removeProgram(
+    programId: number
+  ) {
+    setForm(
+      (current) => ({
+        ...current,
+
+        programIds:
+          current.programIds.filter(
+            (id) =>
+              id !== programId
+          ),
+      })
+    );
   }
 
   /* =====================================================
@@ -262,6 +402,15 @@ export default function ManageUsersPage() {
         );
       }
 
+      if (
+        form.role === 'lecturer' &&
+        form.programIds.length === 0
+      ) {
+        throw new Error(
+          'Please assign at least one course to this lecturer.'
+        );
+      }
+
       /* =================================================
          URL
       ================================================= */
@@ -279,21 +428,37 @@ export default function ManageUsersPage() {
         : 'POST';
 
       /* =================================================
-         REQUEST BODY
+         BODY
       ================================================= */
 
-      const body: any = {
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone.trim(),
-        role: form.role,
+      const body: {
+        name: string;
+        email: string;
+        phone: string;
+        role: UserRole;
+        password?: string;
+        programIds: number[];
+      } = {
+        name:
+          form.name.trim(),
+
+        email:
+          form.email
+            .trim()
+            .toLowerCase(),
+
+        phone:
+          form.phone.trim(),
+
+        role:
+          form.role,
+
+        programIds:
+          form.role === 'lecturer'
+            ? form.programIds
+            : [],
       };
 
-      /*
-       * Only send password when:
-       * - creating a new user, or
-       * - editing and entering a new password
-       */
       if (
         !editingUser ||
         form.password.trim()
@@ -315,7 +480,9 @@ export default function ManageUsersPage() {
               'Content-Type':
                 'application/json',
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(
+              body
+            ),
           }
         );
 
@@ -338,24 +505,26 @@ export default function ManageUsersPage() {
 
       setSuccess(
         editingUser
-          ? 'User updated successfully.'
-          : 'User created successfully.'
+          ? 'User and course assignments updated successfully.'
+          : 'User created and course assignments saved successfully.'
       );
 
       await loadUsers();
 
       /* =================================================
-         CLOSE MODAL
+         CLOSE
       ================================================= */
 
       setTimeout(() => {
         setShowModal(false);
         setEditingUser(null);
+
         setForm({
           ...initialForm,
         });
+
         setSuccess('');
-      }, 700);
+      }, 900);
     } catch (error) {
       console.error(
         'SAVE USER ERROR:',
@@ -558,13 +727,13 @@ export default function ManageUsersPage() {
             ALERTS
         ================================================= */}
 
-        {error && (
+        {error && !showModal && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </div>
         )}
 
-        {success && (
+        {success && !showModal && (
           <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
             {success}
           </div>
@@ -575,8 +744,6 @@ export default function ManageUsersPage() {
         ================================================= */}
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* TOTAL */}
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
@@ -598,8 +765,6 @@ export default function ManageUsersPage() {
             </div>
           </div>
 
-          {/* ADMINS */}
-
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
 
@@ -620,8 +785,6 @@ export default function ManageUsersPage() {
             </div>
           </div>
 
-          {/* LECTURERS */}
-
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
 
@@ -641,8 +804,6 @@ export default function ManageUsersPage() {
 
             </div>
           </div>
-
-          {/* PARENTS */}
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="flex items-center gap-4">
@@ -670,33 +831,38 @@ export default function ManageUsersPage() {
             ACTIVE SUMMARY
         ================================================= */}
 
-        {!loading && totalUsers > 0 && (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
-            <div className="flex items-center justify-between">
+        {!loading &&
+          totalUsers > 0 && (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-soft">
 
-              <div>
-                <p className="text-sm font-bold text-brand-dark">
-                  Account Status
-                </p>
+              <div className="flex items-center justify-between">
 
-                <p className="mt-1 text-xs text-slate-500">
-                  Currently active system accounts
-                </p>
-              </div>
+                <div>
+                  <p className="text-sm font-bold text-brand-dark">
+                    Account Status
+                  </p>
 
-              <div className="text-right">
-                <p className="text-lg font-bold text-green-600">
-                  {activeCount}
-                </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Currently active system accounts
+                  </p>
+                </div>
 
-                <p className="text-xs text-slate-500">
-                  of {totalUsers} active
-                </p>
+                <div className="text-right">
+
+                  <p className="text-lg font-bold text-green-600">
+                    {activeCount}
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    of {totalUsers} active
+                  </p>
+
+                </div>
+
               </div>
 
             </div>
-          </div>
-        )}
+          )}
 
         {/* =================================================
             USERS TABLE
@@ -716,8 +882,6 @@ export default function ManageUsersPage() {
 
           </div>
 
-          {/* LOADING */}
-
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center">
 
@@ -732,11 +896,7 @@ export default function ManageUsersPage() {
               </div>
 
             </div>
-
           ) : users.length === 0 ? (
-
-            /* EMPTY */
-
             <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
 
               <Users className="h-12 w-12 text-slate-200" />
@@ -758,14 +918,10 @@ export default function ManageUsersPage() {
               </button>
 
             </div>
-
           ) : (
-
-            /* TABLE */
-
             <div className="overflow-x-auto">
 
-              <table className="min-w-[900px] w-full">
+              <table className="min-w-[1050px] w-full">
 
                 <thead>
 
@@ -777,6 +933,10 @@ export default function ManageUsersPage() {
 
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                       Role
+                    </th>
+
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Courses
                     </th>
 
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -853,6 +1013,47 @@ export default function ManageUsersPage() {
 
                         </td>
 
+                        {/* COURSES */}
+
+                        <td className="px-5 py-4">
+
+                          {user.role !==
+                          'lecturer' ? (
+                            <span className="text-xs text-slate-400">
+                              —
+                            </span>
+                          ) : user.programs &&
+                            user.programs.length >
+                              0 ? (
+                            <div className="flex max-w-[330px] flex-wrap gap-1.5">
+
+                              {user.programs.map(
+                                (
+                                  program
+                                ) => (
+                                  <span
+                                    key={
+                                      program.id
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-full bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-brand-green"
+                                  >
+                                    <BookOpen className="h-3 w-3" />
+
+                                    {program.code ||
+                                      program.name}
+                                  </span>
+                                )
+                              )}
+
+                            </div>
+                          ) : (
+                            <span className="text-xs font-medium text-amber-600">
+                              No courses assigned
+                            </span>
+                          )}
+
+                        </td>
+
                         {/* PHONE */}
 
                         <td className="px-5 py-4 text-sm text-slate-500">
@@ -888,8 +1089,6 @@ export default function ManageUsersPage() {
 
                           <div className="flex justify-end gap-2">
 
-                            {/* EDIT */}
-
                             <button
                               type="button"
                               onClick={() =>
@@ -909,8 +1108,6 @@ export default function ManageUsersPage() {
                               Edit
 
                             </button>
-
-                            {/* DELETE */}
 
                             <button
                               type="button"
@@ -975,11 +1172,11 @@ export default function ManageUsersPage() {
           }}
         >
 
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
 
             {/* HEADER */}
 
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
 
               <div>
 
@@ -991,8 +1188,8 @@ export default function ManageUsersPage() {
 
                 <p className="mt-1 text-xs text-slate-500">
                   {editingUser
-                    ? 'Update this LMS user account.'
-                    : 'Create a new LMS user account.'}
+                    ? 'Update this LMS user and manage course assignments.'
+                    : 'Create a new LMS user and assign courses if they are a lecturer.'}
                 </p>
 
               </div>
@@ -1003,7 +1200,9 @@ export default function ManageUsersPage() {
                 disabled={saving}
                 className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
+
                 <X className="h-5 w-5" />
+
               </button>
 
             </div>
@@ -1097,15 +1296,31 @@ export default function ManageUsersPage() {
                 <select
                   required
                   value={form.role}
-                  onChange={(event) =>
+                  onChange={(event) => {
+
+                    const role =
+                      event.target
+                        .value as UserRole;
+
                     updateForm(
                       'role',
-                      event.target
-                        .value as UserRole
-                    )
-                  }
+                      role
+                    );
+
+                    if (
+                      role !==
+                      'lecturer'
+                    ) {
+                      updateForm(
+                        'programIds',
+                        []
+                      );
+                    }
+
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                 >
+
                   <option value="lecturer">
                     Lecturer
                   </option>
@@ -1117,6 +1332,224 @@ export default function ManageUsersPage() {
                 </select>
 
               </div>
+
+              {/* =================================================
+                  COURSE ASSIGNMENT
+              ================================================= */}
+
+              {form.role ===
+                'lecturer' && (
+                <div className="rounded-2xl border border-brand-green/20 bg-brand-green/5 p-5">
+
+                  <div className="flex items-start gap-3">
+
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-green/10">
+
+                      <BookOpen className="h-5 w-5 text-brand-green" />
+
+                    </div>
+
+                    <div className="min-w-0">
+
+                      <h3 className="text-sm font-bold text-brand-dark">
+                        Assign Courses
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Select one or more courses
+                        this lecturer will teach.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  {/* SELECTED COURSES */}
+
+                  {form.programIds.length >
+                    0 && (
+                    <div className="mt-4">
+
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Selected Courses (
+                        {
+                          form.programIds
+                            .length
+                        }
+                        )
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+
+                        {form.programIds.map(
+                          (programId) => {
+
+                            const program =
+                              programs.find(
+                                (item) =>
+                                  item.id ===
+                                  programId
+                              );
+
+                            if (!program) {
+                              return null;
+                            }
+
+                            return (
+                              <span
+                                key={
+                                  program.id
+                                }
+                                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-green shadow-sm ring-1 ring-brand-green/10"
+                              >
+
+                                <Check className="h-3.5 w-3.5" />
+
+                                {program.code
+                                  ? `${program.code} — ${program.name}`
+                                  : program.name}
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeProgram(
+                                      program.id
+                                    )
+                                  }
+                                  disabled={
+                                    saving
+                                  }
+                                  className="ml-1 rounded-full p-0.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                >
+
+                                  <X className="h-3 w-3" />
+
+                                </button>
+
+                              </span>
+                            );
+                          }
+                        )}
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* COURSE LIST */}
+
+                  <div className="mt-4">
+
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Available Courses
+                    </p>
+
+                    {loadingPrograms ? (
+                      <div className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+
+                        <Loader2 className="h-5 w-5 animate-spin text-brand-green" />
+
+                        <span className="ml-2 text-xs text-slate-500">
+                          Loading courses...
+                        </span>
+
+                      </div>
+                    ) : programs.length ===
+                      0 ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-xs font-medium text-amber-700">
+                        No courses are currently
+                        available in the LMS.
+                      </div>
+                    ) : (
+                      <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+
+                        {programs.map(
+                          (program) => {
+
+                            const selected =
+                              form.programIds.includes(
+                                program.id
+                              );
+
+                            return (
+                              <button
+                                type="button"
+                                key={
+                                  program.id
+                                }
+                                onClick={() =>
+                                  toggleProgram(
+                                    program.id
+                                  )
+                                }
+                                disabled={
+                                  saving
+                                }
+                                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                                  selected
+                                    ? 'border-brand-green/30 bg-brand-green/5'
+                                    : 'border-transparent hover:border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+
+                                <span
+                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                                    selected
+                                      ? 'border-brand-green bg-brand-green text-white'
+                                      : 'border-slate-300 bg-white'
+                                  }`}
+                                >
+
+                                  {selected && (
+                                    <Check className="h-3.5 w-3.5" />
+                                  )}
+
+                                </span>
+
+                                <span className="min-w-0 flex-1">
+
+                                  <span className="block text-sm font-bold text-brand-dark">
+                                    {program.name}
+                                  </span>
+
+                                  <span className="mt-0.5 block text-xs text-slate-400">
+
+                                    {[
+                                      program.code,
+                                      program.level,
+                                      program.duration,
+                                    ]
+                                      .filter(
+                                        Boolean
+                                      )
+                                      .join(
+                                        ' • '
+                                      )}
+
+                                  </span>
+
+                                </span>
+
+                              </button>
+                            );
+                          }
+                        )}
+
+                      </div>
+                    )}
+
+                  </div>
+
+                  {form.programIds.length ===
+                    0 && (
+                    <p className="mt-3 text-xs font-medium text-amber-600">
+                      At least one course must be
+                      assigned to a lecturer.
+                    </p>
+                  )}
+
+                </div>
+              )}
 
               {/* PASSWORD */}
 
@@ -1141,11 +1574,7 @@ export default function ManageUsersPage() {
                     )
                   }
                   minLength={8}
-                  autoComplete={
-                    editingUser
-                      ? 'new-password'
-                      : 'new-password'
-                  }
+                  autoComplete="new-password"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-4 focus:ring-brand-green/10"
                   placeholder={
                     editingUser
@@ -1193,7 +1622,10 @@ export default function ManageUsersPage() {
 
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    loadingPrograms
+                  }
                   className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
 
@@ -1202,7 +1634,7 @@ export default function ManageUsersPage() {
                   )}
 
                   {editingUser
-                    ? 'Update User'
+                    ? 'Save Changes'
                     : 'Create User'}
 
                 </button>

@@ -6,16 +6,6 @@ import { requireAdmin } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 
-/* =========================================================
-   TYPES
-========================================================= */
-
-type RouteContext = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
 type UserRole =
   | 'lecturer'
   | 'parent';
@@ -28,44 +18,60 @@ type UserStatus =
    HELPERS
 ========================================================= */
 
+function cleanString(
+  value: unknown
+): string {
+  return String(value || '').trim();
+}
+
 function normalizeRole(
-  role: unknown
+  value: unknown
 ): UserRole | null {
-  const value = String(role || '')
-    .trim()
-    .toLowerCase();
+  const role =
+    cleanString(value).toLowerCase();
 
   if (
-    value === 'lecturer' ||
-    value === 'parent'
+    role === 'lecturer' ||
+    role === 'parent'
   ) {
-    return value;
+    return role;
   }
 
   return null;
 }
 
 function normalizeStatus(
-  status: unknown
+  value: unknown
 ): UserStatus | null {
-  const value = String(status || '')
-    .trim()
-    .toLowerCase();
+  const status =
+    cleanString(value).toLowerCase();
 
   if (
-    value === 'active' ||
-    value === 'inactive'
+    status === 'active' ||
+    status === 'inactive'
   ) {
-    return value;
+    return status;
   }
 
   return null;
 }
 
-function cleanString(
+function normalizeProgramIds(
   value: unknown
-): string {
-  return String(value || '').trim();
+): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids = value
+    .map((item) => Number(item))
+    .filter(
+      (id) =>
+        Number.isInteger(id) &&
+        id > 0
+    );
+
+  return [...new Set(ids)];
 }
 
 /* =========================================================
@@ -75,13 +81,13 @@ function cleanString(
 
 export async function GET(
   request: Request,
-  context: RouteContext
+  context: {
+    params: Promise<{
+      id: string;
+    }>;
+  }
 ) {
   try {
-    /* =====================================================
-       ADMIN AUTHENTICATION
-    ===================================================== */
-
     const admin = requireAdmin();
 
     if (!admin) {
@@ -94,18 +100,15 @@ export async function GET(
       );
     }
 
-    /* =====================================================
-       GET USER ID
-    ===================================================== */
-
-    const { id: idParam } =
+    const { id } =
       await context.params;
 
-    const id = Number(idParam);
+    const userId =
+      Number(id);
 
     if (
-      !Number.isInteger(id) ||
-      id <= 0
+      !Number.isInteger(userId) ||
+      userId <= 0
     ) {
       return NextResponse.json(
         {
@@ -116,40 +119,56 @@ export async function GET(
       );
     }
 
-    /* =====================================================
-       GET USER
-    ===================================================== */
-
     const result =
       await pool.query(
         `
-          SELECT
-            id,
-            name,
-            email,
-            phone,
-            role,
-            active,
-            created_at,
-            updated_at
+        SELECT
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.role,
+          u.active,
+          u.created_at,
+          u.updated_at,
 
-          FROM users
+          COALESCE(
+            ARRAY_AGG(
+              DISTINCT lp.program_id
+            ) FILTER (
+              WHERE lp.program_id IS NOT NULL
+            ),
+            '{}'
+          ) AS program_ids,
 
-          WHERE id = $1
+          COALESCE(
+            JSON_AGG(
+              DISTINCT JSONB_BUILD_OBJECT(
+                'id', p.id,
+                'name', p.name,
+                'code', p.code
+              )
+            ) FILTER (
+              WHERE p.id IS NOT NULL
+            ),
+            '[]'
+          ) AS programs
 
-          AND role IN (
-            'lecturer',
-            'parent'
-          )
+        FROM users u
 
-          LIMIT 1
+        LEFT JOIN lms_lecturer_programs lp
+          ON lp.lecturer_id = u.id
+
+        LEFT JOIN lms_programs p
+          ON p.id = lp.program_id
+
+        WHERE u.id = $1
+
+        GROUP BY
+          u.id
         `,
-        [id]
+        [userId]
       );
-
-    /* =====================================================
-       USER NOT FOUND
-    ===================================================== */
 
     if (
       result.rows.length === 0
@@ -162,10 +181,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    /* =====================================================
-       RESPONSE
-    ===================================================== */
 
     return NextResponse.json({
       success: true,
@@ -197,13 +212,16 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  context: RouteContext
+  context: {
+    params: Promise<{
+      id: string;
+    }>;
+  }
 ) {
-  try {
-    /* =====================================================
-       ADMIN AUTHENTICATION
-    ===================================================== */
+  const client =
+    await pool.connect();
 
+  try {
     const admin = requireAdmin();
 
     if (!admin) {
@@ -216,18 +234,15 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       GET USER ID
-    ===================================================== */
-
-    const { id: idParam } =
+    const { id } =
       await context.params;
 
-    const id = Number(idParam);
+    const userId =
+      Number(id);
 
     if (
-      !Number.isInteger(id) ||
-      id <= 0
+      !Number.isInteger(userId) ||
+      userId <= 0
     ) {
       return NextResponse.json(
         {
@@ -238,10 +253,6 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       READ BODY
-    ===================================================== */
-
     let body: any;
 
     try {
@@ -250,118 +261,88 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid request body.',
+          message:
+            'Invalid request body.',
         },
         { status: 400 }
       );
     }
 
-    /* =====================================================
-       CHECK USER EXISTS
-    ===================================================== */
-
-    const existingResult =
-      await pool.query(
-        `
-          SELECT
-            id,
-            name,
-            email,
-            role,
-            active
-
-          FROM users
-
-          WHERE id = $1
-
-          AND role IN (
-            'lecturer',
-            'parent'
-          )
-
-          LIMIT 1
-        `,
-        [id]
-      );
-
-    if (
-      existingResult.rows.length === 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'User not found.',
-        },
-        { status: 404 }
-      );
-    }
-
-    /* =====================================================
-       GET VALUES
-    ===================================================== */
-
     const name =
-      body?.name !== undefined
-        ? cleanString(body.name)
-        : undefined;
+      cleanString(body?.name);
 
     const email =
-      body?.email !== undefined
-        ? cleanString(body.email).toLowerCase()
-        : undefined;
+      cleanString(body?.email)
+        .toLowerCase();
 
     const phone =
-      body?.phone !== undefined
-        ? cleanString(body.phone)
-        : undefined;
+      cleanString(body?.phone);
 
     const password =
-      body?.password !== undefined
-        ? cleanString(body.password)
-        : undefined;
+      cleanString(body?.password);
 
     const role =
-      body?.role !== undefined
-        ? normalizeRole(body.role)
-        : undefined;
+      normalizeRole(body?.role);
 
     const status =
-      body?.status !== undefined
-        ? normalizeStatus(body.status)
-        : undefined;
+      normalizeStatus(
+        body?.status || 'active'
+      );
+
+    const programIds =
+      normalizeProgramIds(
+        body?.programIds
+      );
 
     /* =====================================================
        VALIDATION
     ===================================================== */
 
-    if (
-      name !== undefined &&
-      !name
-    ) {
+    if (!name) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Name cannot be empty.',
+          message:
+            'Name is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Email address is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!role) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Role must be lecturer or parent.',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!status) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Status must be active or inactive.',
         },
         { status: 400 }
       );
     }
 
     if (
-      email !== undefined &&
-      !email
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Email cannot be empty.',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (
-      password !== undefined &&
       password &&
       password.length < 8
     ) {
@@ -376,266 +357,147 @@ export async function PATCH(
     }
 
     if (
-      role !== undefined &&
-      !role
+      role === 'parent' &&
+      programIds.length > 0
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            'Invalid role. Use lecturer or parent.',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (
-      status !== undefined &&
-      !status
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'Invalid status. Use active or inactive.',
+            'Courses can only be assigned to lecturers.',
         },
         { status: 400 }
       );
     }
 
     /* =====================================================
-       CHECK DUPLICATE EMAIL IN USERS
+       CHECK USER EXISTS
     ===================================================== */
 
-    if (email) {
-      const duplicate =
-        await pool.query(
+    const existing =
+      await client.query(
+        `
+        SELECT
+          id,
+          role
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+    if (
+      existing.rows.length === 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'User not found.',
+        },
+        { status: 404 }
+      );
+    }
+
+    /* =====================================================
+       CHECK EMAIL
+    ===================================================== */
+
+    const duplicateEmail =
+      await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+          AND id <> $2
+        LIMIT 1
+        `,
+        [
+          email,
+          userId,
+        ]
+      );
+
+    if (
+      duplicateEmail.rows.length > 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Another user already uses this email address.',
+        },
+        { status: 409 }
+      );
+    }
+
+    /* =====================================================
+       VALIDATE PROGRAMS
+    ===================================================== */
+
+    if (
+      role === 'lecturer' &&
+      programIds.length > 0
+    ) {
+      const programs =
+        await client.query(
           `
-            SELECT id
-
-            FROM users
-
-            WHERE LOWER(email) = LOWER($1)
-
-            AND id <> $2
-
-            LIMIT 1
+          SELECT id
+          FROM lms_programs
+          WHERE id = ANY($1::integer[])
           `,
-          [email, id]
+          [programIds]
         );
 
       if (
-        duplicate.rows.length > 0
+        programs.rows.length !==
+        programIds.length
       ) {
         return NextResponse.json(
           {
             success: false,
             message:
-              'Another user already uses this email address.',
+              'One or more selected courses do not exist.',
           },
-          { status: 409 }
-        );
-      }
-
-      /* ===================================================
-         CHECK EMAIL IN ADMIN_USERS
-      =================================================== */
-
-      const adminDuplicate =
-        await pool.query(
-          `
-            SELECT id
-
-            FROM admin_users
-
-            WHERE LOWER(email) = LOWER($1)
-
-            LIMIT 1
-          `,
-          [email]
-        );
-
-      if (
-        adminDuplicate.rows.length > 0
-      ) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              'This email address is already registered as an administrator.',
-          },
-          { status: 409 }
+          { status: 400 }
         );
       }
     }
 
     /* =====================================================
-       BUILD UPDATE QUERY
+       START TRANSACTION
     ===================================================== */
 
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    let parameterIndex = 1;
+    await client.query('BEGIN');
 
     /* =====================================================
-       NAME
+       UPDATE WITHOUT PASSWORD
     ===================================================== */
 
-    if (
-      name !== undefined
-    ) {
-      fields.push(
-        `name = $${parameterIndex}`
-      );
+    let userResult;
 
-      values.push(name);
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       EMAIL
-    ===================================================== */
-
-    if (
-      email !== undefined
-    ) {
-      fields.push(
-        `email = $${parameterIndex}`
-      );
-
-      values.push(email);
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       PHONE
-    ===================================================== */
-
-    if (
-      phone !== undefined
-    ) {
-      fields.push(
-        `phone = $${parameterIndex}`
-      );
-
-      values.push(
-        phone || null
-      );
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       ROLE
-    ===================================================== */
-
-    if (
-      role !== undefined
-    ) {
-      fields.push(
-        `role = $${parameterIndex}`
-      );
-
-      values.push(role);
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       STATUS
-    ===================================================== */
-
-    if (
-      status !== undefined
-    ) {
-      fields.push(
-        `active = $${parameterIndex}`
-      );
-
-      values.push(
-        status === 'active'
-      );
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       PASSWORD
-    ===================================================== */
-
-    if (
-      password !== undefined &&
-      password
-    ) {
+    if (password) {
       const passwordHash =
         await bcrypt.hash(
           password,
           12
         );
 
-      fields.push(
-        `password_hash = $${parameterIndex}`
-      );
-
-      values.push(passwordHash);
-
-      parameterIndex++;
-    }
-
-    /* =====================================================
-       UPDATED AT
-    ===================================================== */
-
-    fields.push(
-      `updated_at = NOW()`
-    );
-
-    /* =====================================================
-       NOTHING TO UPDATE
-    ===================================================== */
-
-    if (
-      fields.length === 1 &&
-      fields[0] ===
-        'updated_at = NOW()'
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'No changes were provided.',
-        },
-        { status: 400 }
-      );
-    }
-
-    /* =====================================================
-       ADD USER ID
-    ===================================================== */
-
-    values.push(id);
-
-    /* =====================================================
-       UPDATE USER
-    ===================================================== */
-
-    const result =
-      await pool.query(
-        `
+      userResult =
+        await client.query(
+          `
           UPDATE users
 
           SET
-            ${fields.join(', ')}
+            name = $1,
+            email = $2,
+            phone = $3,
+            password_hash = $4,
+            role = $5,
+            active = $6,
+            updated_at = CURRENT_TIMESTAMP
 
-          WHERE id = $${parameterIndex}
-
-          AND role IN (
-            'lecturer',
-            'parent'
-          )
+          WHERE id = $7
 
           RETURNING
             id,
@@ -646,62 +508,131 @@ export async function PATCH(
             active,
             created_at,
             updated_at
-        `,
-        values
-      );
+          `,
+          [
+            name,
+            email,
+            phone || null,
+            passwordHash,
+            role,
+            status === 'active',
+            userId,
+          ]
+        );
+    } else {
+      userResult =
+        await client.query(
+          `
+          UPDATE users
 
-    if (
-      result.rows.length === 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'User could not be updated.',
-        },
-        { status: 500 }
-      );
+          SET
+            name = $1,
+            email = $2,
+            phone = $3,
+            role = $4,
+            active = $5,
+            updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = $6
+
+          RETURNING
+            id,
+            name,
+            email,
+            phone,
+            role,
+            active,
+            created_at,
+            updated_at
+          `,
+          [
+            name,
+            email,
+            phone || null,
+            role,
+            status === 'active',
+            userId,
+          ]
+        );
     }
 
-    const user =
-      result.rows[0];
-
     /* =====================================================
-       LOG
+       REMOVE OLD COURSE ASSIGNMENTS
     ===================================================== */
 
-    console.log(
-      `Admin ${admin.email} updated user #${id}`
+    await client.query(
+      `
+      DELETE FROM lms_lecturer_programs
+      WHERE lecturer_id = $1
+      `,
+      [userId]
     );
 
     /* =====================================================
-       RESPONSE
+       INSERT NEW COURSE ASSIGNMENTS
     ===================================================== */
+
+    if (
+      role === 'lecturer' &&
+      programIds.length > 0
+    ) {
+      for (const programId of programIds) {
+        await client.query(
+          `
+          INSERT INTO lms_lecturer_programs (
+            lecturer_id,
+            program_id
+          )
+
+          VALUES (
+            $1,
+            $2
+          )
+
+          ON CONFLICT (
+            lecturer_id,
+            program_id
+          )
+          DO NOTHING
+          `,
+          [
+            userId,
+            programId,
+          ]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    const user =
+      userResult.rows[0];
+
+    console.log(
+      `Admin ${admin.email} updated LMS user #${userId} with ${programIds.length} course assignment(s).`
+    );
 
     return NextResponse.json({
       success: true,
       message:
         'User updated successfully.',
-      user,
+      user: {
+        ...user,
+        program_ids:
+          programIds,
+      },
     });
   } catch (error: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Ignore rollback errors.
+    }
+
     console.error(
-      'UPDATE ADMIN USER ERROR:',
+      'UPDATE LMS USER ERROR:',
       error
     );
-
-    if (
-      error?.code === '23505'
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'A user with this email already exists.',
-        },
-        { status: 409 }
-      );
-    }
 
     return NextResponse.json(
       {
@@ -713,6 +644,8 @@ export async function PATCH(
       },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
 
@@ -723,13 +656,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  context: RouteContext
+  context: {
+    params: Promise<{
+      id: string;
+    }>;
+  }
 ) {
   try {
-    /* =====================================================
-       ADMIN AUTHENTICATION
-    ===================================================== */
-
     const admin = requireAdmin();
 
     if (!admin) {
@@ -742,18 +675,15 @@ export async function DELETE(
       );
     }
 
-    /* =====================================================
-       GET USER ID
-    ===================================================== */
-
-    const { id: idParam } =
+    const { id } =
       await context.params;
 
-    const id = Number(idParam);
+    const userId =
+      Number(id);
 
     if (
-      !Number.isInteger(id) ||
-      id <= 0
+      !Number.isInteger(userId) ||
+      userId <= 0
     ) {
       return NextResponse.json(
         {
@@ -764,35 +694,22 @@ export async function DELETE(
       );
     }
 
-    /* =====================================================
-       CHECK USER EXISTS
-    ===================================================== */
-
-    const existingResult =
+    const result =
       await pool.query(
         `
-          SELECT
-            id,
-            name,
-            email,
-            role
-
-          FROM users
-
-          WHERE id = $1
-
-          AND role IN (
-            'lecturer',
-            'parent'
-          )
-
-          LIMIT 1
+        DELETE FROM users
+        WHERE id = $1
+        RETURNING
+          id,
+          name,
+          email,
+          role
         `,
-        [id]
+        [userId]
       );
 
     if (
-      existingResult.rows.length === 0
+      result.rows.length === 0
     ) {
       return NextResponse.json(
         {
@@ -803,47 +720,19 @@ export async function DELETE(
       );
     }
 
-    const user =
-      existingResult.rows[0];
-
-    /* =====================================================
-       DELETE USER
-    ===================================================== */
-
-    await pool.query(
-      `
-        DELETE FROM users
-
-        WHERE id = $1
-
-        AND role IN (
-          'lecturer',
-          'parent'
-        )
-      `,
-      [id]
-    );
-
-    /* =====================================================
-       LOG
-    ===================================================== */
-
     console.log(
-      `Admin ${admin.email} deleted user #${id} (${user.email})`
+      `Admin ${admin.email} deleted LMS user #${userId}.`
     );
-
-    /* =====================================================
-       RESPONSE
-    ===================================================== */
 
     return NextResponse.json({
       success: true,
       message:
         'User deleted successfully.',
+      user: result.rows[0],
     });
   } catch (error) {
     console.error(
-      'DELETE ADMIN USER ERROR:',
+      'DELETE LMS USER ERROR:',
       error
     );
 

@@ -63,6 +63,28 @@ function cleanString(
 }
 
 /* =========================================================
+   NORMALIZE PROGRAM IDS
+========================================================= */
+
+function normalizeProgramIds(
+  value: unknown
+): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids = value
+    .map((item) => Number(item))
+    .filter(
+      (id) =>
+        Number.isInteger(id) &&
+        id > 0
+    );
+
+  return [...new Set(ids)];
+}
+
+/* =========================================================
    GET USERS
    GET /api/admin/users
 ========================================================= */
@@ -154,31 +176,22 @@ export async function GET(
 
     let parameterIndex = 1;
 
-    /* =====================================================
-       SEARCH
-    ===================================================== */
-
     if (search) {
       conditions.push(`
         (
-          name ILIKE $${parameterIndex}
-          OR email ILIKE $${parameterIndex}
-          OR phone ILIKE $${parameterIndex}
+          u.name ILIKE $${parameterIndex}
+          OR u.email ILIKE $${parameterIndex}
+          OR u.phone ILIKE $${parameterIndex}
         )
       `);
 
       values.push(`%${search}%`);
-
       parameterIndex++;
     }
 
-    /* =====================================================
-       ROLE FILTER
-    ===================================================== */
-
     if (role) {
       conditions.push(
-        `role = $${parameterIndex}`
+        `u.role = $${parameterIndex}`
       );
 
       values.push(
@@ -188,25 +201,18 @@ export async function GET(
       parameterIndex++;
     }
 
-    /* =====================================================
-       STATUS FILTER
-    ===================================================== */
-
     if (status) {
       conditions.push(
-        `active = $${parameterIndex}`
+        `u.active = $${parameterIndex}`
       );
 
       values.push(
-        normalizeStatus(status) === 'active'
+        normalizeStatus(status) ===
+          'active'
       );
 
       parameterIndex++;
     }
-
-    /* =====================================================
-       WHERE CLAUSE
-    ===================================================== */
 
     const whereClause =
       conditions.length > 0
@@ -214,27 +220,66 @@ export async function GET(
         : '';
 
     /* =====================================================
-       GET USERS
+       GET USERS + ASSIGNED PROGRAMS
     ===================================================== */
 
     const result =
       await pool.query(
         `
-          SELECT
-            id,
-            name,
-            email,
-            phone,
-            role,
-            active,
-            created_at,
-            updated_at
+        SELECT
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.role,
+          u.active,
+          u.created_at,
+          u.updated_at,
 
-          FROM users
+          COALESCE(
+            ARRAY_AGG(
+              DISTINCT lp.program_id
+            ) FILTER (
+              WHERE lp.program_id IS NOT NULL
+            ),
+            '{}'
+          ) AS program_ids,
 
-          ${whereClause}
+          COALESCE(
+            JSON_AGG(
+              DISTINCT JSONB_BUILD_OBJECT(
+                'id', p.id,
+                'name', p.name,
+                'code', p.code
+              )
+            ) FILTER (
+              WHERE p.id IS NOT NULL
+            ),
+            '[]'
+          ) AS programs
 
-          ORDER BY created_at DESC
+        FROM users u
+
+        LEFT JOIN lms_lecturer_programs lp
+          ON lp.lecturer_id = u.id
+
+        LEFT JOIN lms_programs p
+          ON p.id = lp.program_id
+
+        ${whereClause}
+
+        GROUP BY
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.role,
+          u.active,
+          u.created_at,
+          u.updated_at
+
+        ORDER BY
+          u.created_at DESC
         `,
         values
       );
@@ -317,6 +362,9 @@ export async function GET(
 export async function POST(
   request: Request
 ) {
+  const client =
+    await pool.connect();
+
   try {
     /* =====================================================
        ADMIN AUTHENTICATION
@@ -376,6 +424,11 @@ export async function POST(
     const status =
       normalizeStatus(
         body?.status || 'active'
+      );
+
+    const programIds =
+      normalizeProgramIds(
+        body?.programIds
       );
 
     /* =====================================================
@@ -449,16 +502,34 @@ export async function POST(
     }
 
     /* =====================================================
+       COURSE ASSIGNMENT VALIDATION
+    ===================================================== */
+
+    if (
+      role === 'parent' &&
+      programIds.length > 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Courses can only be assigned to lecturers.',
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =====================================================
        CHECK EMAIL IN USERS
     ===================================================== */
 
     const existingUser =
-      await pool.query(
+      await client.query(
         `
-          SELECT id
-          FROM users
-          WHERE LOWER(email) = LOWER($1)
-          LIMIT 1
+        SELECT id
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
         `,
         [email]
       );
@@ -477,17 +548,16 @@ export async function POST(
     }
 
     /* =====================================================
-       CHECK EMAIL IN ADMIN_USERS
-       Prevent same email being used for both systems.
+       CHECK ADMIN USERS
     ===================================================== */
 
     const existingAdmin =
-      await pool.query(
+      await client.query(
         `
-          SELECT id
-          FROM admin_users
-          WHERE LOWER(email) = LOWER($1)
-          LIMIT 1
+        SELECT id
+        FROM admin_users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
         `,
         [email]
       );
@@ -506,6 +576,39 @@ export async function POST(
     }
 
     /* =====================================================
+       VALIDATE PROGRAMS EXIST
+    ===================================================== */
+
+    if (
+      role === 'lecturer' &&
+      programIds.length > 0
+    ) {
+      const programsResult =
+        await client.query(
+          `
+          SELECT id
+          FROM lms_programs
+          WHERE id = ANY($1::integer[])
+          `,
+          [programIds]
+        );
+
+      if (
+        programsResult.rows.length !==
+        programIds.length
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'One or more selected courses do not exist.',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    /* =====================================================
        HASH PASSWORD
     ===================================================== */
 
@@ -515,47 +618,49 @@ export async function POST(
         12
       );
 
-    /* =====================================================
-       ACTIVE STATUS
-    ===================================================== */
-
     const active =
       status === 'active';
+
+    /* =====================================================
+       TRANSACTION
+    ===================================================== */
+
+    await client.query('BEGIN');
 
     /* =====================================================
        CREATE USER
     ===================================================== */
 
-    const result =
-      await pool.query(
+    const userResult =
+      await client.query(
         `
-          INSERT INTO users (
-            name,
-            email,
-            phone,
-            password_hash,
-            role,
-            active
-          )
+        INSERT INTO users (
+          name,
+          email,
+          phone,
+          password_hash,
+          role,
+          active
+        )
 
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6
-          )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6
+        )
 
-          RETURNING
-            id,
-            name,
-            email,
-            phone,
-            role,
-            active,
-            created_at,
-            updated_at
+        RETURNING
+          id,
+          name,
+          email,
+          phone,
+          role,
+          active,
+          created_at,
+          updated_at
         `,
         [
           name,
@@ -568,14 +673,51 @@ export async function POST(
       );
 
     const user =
-      result.rows[0];
+      userResult.rows[0];
+
+    /* =====================================================
+       ASSIGN COURSES
+    ===================================================== */
+
+    if (
+      role === 'lecturer' &&
+      programIds.length > 0
+    ) {
+      for (const programId of programIds) {
+        await client.query(
+          `
+          INSERT INTO lms_lecturer_programs (
+            lecturer_id,
+            program_id
+          )
+
+          VALUES (
+            $1,
+            $2
+          )
+
+          ON CONFLICT (
+            lecturer_id,
+            program_id
+          )
+          DO NOTHING
+          `,
+          [
+            user.id,
+            programId,
+          ]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
 
     /* =====================================================
        LOG
     ===================================================== */
 
     console.log(
-      `Admin ${admin.email} created LMS user #${user.id} (${user.email}) with role ${user.role}`
+      `Admin ${admin.email} created LMS user #${user.id} (${user.email}) with role ${user.role} and ${programIds.length} course assignment(s).`
     );
 
     /* =====================================================
@@ -587,11 +729,21 @@ export async function POST(
         success: true,
         message:
           'User created successfully.',
-        user,
+        user: {
+          ...user,
+          program_ids:
+            programIds,
+        },
       },
       { status: 201 }
     );
   } catch (error: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Ignore rollback errors.
+    }
+
     console.error(
       'CREATE LMS USER ERROR:',
       error
@@ -620,5 +772,7 @@ export async function POST(
       },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }

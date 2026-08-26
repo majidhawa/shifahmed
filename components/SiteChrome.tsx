@@ -42,6 +42,12 @@ export function SiteChrome({
     return <>{children}</>;
   }
 
+  if (
+    pathname === '/lecturer/dashboard' ||
+    pathname.startsWith('/lecturer/dashboard/')
+  ) {
+    return <>{children}</>;
+  }
   /* =========================================================
      PUBLIC WEBSITE
   ========================================================= */
