@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-auth';
+export const dynamic = 'force-dynamic';
 
 /* =========================================================
    GET PAYMENT APPROVALS
