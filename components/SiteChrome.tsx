@@ -48,6 +48,12 @@ export function SiteChrome({
   ) {
     return <>{children}</>;
   }
+   if (
+    pathname === '/parent/dashboard' ||
+    pathname.startsWith('/parent/dashboard/')
+  ) {
+    return <>{children}</>;
+  }
   /* =========================================================
      PUBLIC WEBSITE
   ========================================================= */
