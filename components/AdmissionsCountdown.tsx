@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-const targetDate = new Date('2026-08-28T23:59:59+03:00').getTime();
+const targetDate = new Date('2026-09-07T23:59:59+03:00').getTime();
 
 export function AdmissionsCountdown() {
   const [timeLeft, setTimeLeft] = useState({
@@ -178,7 +178,7 @@ export function AdmissionsCountdown() {
           <div className="shrink-0 rounded-full border border-brand-gold/20 bg-brand-gold/10 px-3 py-1.5">
 
             <p className="text-[9px] font-bold tracking-wider text-brand-gold">
-              28 AUG 2026
+              07 SEP 2026
             </p>
 
           </div>
