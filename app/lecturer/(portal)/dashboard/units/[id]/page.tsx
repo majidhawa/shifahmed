@@ -1729,7 +1729,7 @@ export default function LecturerUnitPage() {
                         </button>
 
                         <Link
-                          href={`/lecturer/dashboard/units/${unit.id}/topics/${topic.id}`}
+                         href={`/lecturer/dashboard/lessons?topic_id=${topic.id}&unit_id=${unit.id}`}
                           className="ml-1 rounded-xl p-2 text-slate-300 transition hover:bg-brand-green/10 hover:text-brand-green"
                           title="Manage Topic"
                           aria-label="Manage Topic"

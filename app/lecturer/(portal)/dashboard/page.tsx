@@ -6,55 +6,392 @@ import {
   ClipboardCheck,
   FileText,
   GraduationCap,
-  CalendarCheck,
-  Megaphone,
   ClipboardList,
   Users,
   PlusCircle,
   BarChart3,
-  Bell,
+  Video,
+  Layers3,
+  ListTree,
+  BookMarked,
 } from 'lucide-react';
 
+import pool from '@/lib/db';
 import { requireLecturer } from '@/lib/lecturer-auth';
-
-/* =========================================================
-   LECTURER DASHBOARD
-   Shifah Medical Training College LMS
-
-   IMPORTANT:
-   This page must NEVER be statically cached.
-
-   After logout, if the user presses the browser Back button,
-   Next.js must perform a fresh server-side authentication check.
-========================================================= */
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-/*
- * Prevent browser/proxy caching of this protected page.
- */
 export const fetchCache = 'force-no-store';
 
 /* =========================================================
-   LECTURER DASHBOARD
+   TYPES
+========================================================= */
+
+type DashboardStats = {
+  courses: number;
+  students: number;
+  units: number;
+  topics: number;
+  lessons: number;
+  materials: number;
+  videos: number;
+  assignments: number;
+  quizzes: number;
+};
+
+/* =========================================================
+   GET DASHBOARD STATISTICS
+========================================================= */
+
+async function getDashboardStats(
+  lecturerId: number
+): Promise<DashboardStats> {
+  /*
+   * Lecturer
+   *    ↓
+   * lms_lecturer_programs
+   *    ↓
+   * lms_programs
+   *    ↓
+   * lms_units
+   *    ↓
+   * lms_topics
+   *    ↓
+   * lms_lessons
+   *
+   * All lecturer statistics are therefore restricted
+   * to programs assigned to the authenticated lecturer.
+   */
+
+  const result = await pool.query(
+    `
+      WITH lecturer_programs AS (
+
+        SELECT DISTINCT
+          lp.program_id
+
+        FROM lms_lecturer_programs lp
+
+        INNER JOIN lms_programs p
+          ON p.id = lp.program_id
+
+        WHERE lp.lecturer_id = $1
+
+      ),
+
+      lecturer_units AS (
+
+        SELECT DISTINCT
+          u.id
+
+        FROM lms_units u
+
+        INNER JOIN lecturer_programs lp
+          ON lp.program_id = u.program_id
+
+      ),
+
+      lecturer_topics AS (
+
+        SELECT DISTINCT
+          t.id
+
+        FROM lms_topics t
+
+        INNER JOIN lecturer_units u
+          ON u.id = t.unit_id
+
+      ),
+
+      lecturer_lessons AS (
+
+        SELECT DISTINCT
+          l.id
+
+        FROM lms_lessons l
+
+        INNER JOIN lecturer_topics t
+          ON t.id = l.topic_id
+
+      )
+
+      SELECT
+
+        /* =================================================
+           COURSES
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+          FROM lecturer_programs
+        ) AS courses,
+
+
+        /* =================================================
+           STUDENTS
+
+           lms_enrollments contains:
+
+           application_id
+           program_id
+
+           It does NOT contain student_id.
+
+           Therefore application_id is used to identify
+           unique enrolled students/applications.
+        ================================================= */
+
+        (
+          SELECT COUNT(DISTINCT e.application_id)::int
+
+          FROM lms_enrollments e
+
+          INNER JOIN lecturer_programs lp
+            ON lp.program_id = e.program_id
+
+        ) AS students,
+
+
+        /* =================================================
+           UNITS
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+          FROM lecturer_units
+        ) AS units,
+
+
+        /* =================================================
+           TOPICS
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+          FROM lecturer_topics
+        ) AS topics,
+
+
+        /* =================================================
+           LESSONS
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+          FROM lecturer_lessons
+        ) AS lessons,
+
+
+        /* =================================================
+           LEARNING MATERIALS
+
+           Correct table:
+
+           lms_lesson_documents
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+
+          FROM lms_lesson_documents d
+
+          INNER JOIN lecturer_lessons ll
+            ON ll.id = d.lesson_id
+
+        ) AS materials,
+
+
+        /* =================================================
+           VIDEOS
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+
+          FROM lms_lesson_videos v
+
+          INNER JOIN lecturer_lessons ll
+            ON ll.id = v.lesson_id
+
+        ) AS videos,
+
+
+        /* =================================================
+           ASSIGNMENTS
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+
+          FROM lms_assignments a
+
+          INNER JOIN lecturer_lessons ll
+            ON ll.id = a.lesson_id
+
+        ) AS assignments,
+
+
+        /* =================================================
+           QUIZZES
+        ================================================= */
+
+        (
+          SELECT COUNT(*)::int
+
+          FROM lms_quizzes q
+
+          INNER JOIN lecturer_lessons ll
+            ON ll.id = q.lesson_id
+
+        ) AS quizzes
+
+    `,
+    [lecturerId]
+  );
+
+  const row = result.rows[0];
+
+  return {
+    courses: Number(row.courses || 0),
+    students: Number(row.students || 0),
+    units: Number(row.units || 0),
+    topics: Number(row.topics || 0),
+    lessons: Number(row.lessons || 0),
+    materials: Number(row.materials || 0),
+    videos: Number(row.videos || 0),
+    assignments: Number(row.assignments || 0),
+    quizzes: Number(row.quizzes || 0),
+  };
+}
+
+/* =========================================================
+   STAT CARD
+========================================================= */
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  iconBackground,
+  iconColor,
+}: {
+  title: string;
+  value: number;
+  description: string;
+  icon: React.ElementType;
+  iconBackground: string;
+  iconColor: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md">
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div className="min-w-0">
+
+          <p className="text-sm font-medium text-slate-500">
+            {title}
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-brand-dark">
+            {value}
+          </p>
+
+        </div>
+
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconBackground}`}
+        >
+          <Icon className={`h-6 w-6 ${iconColor}`} />
+        </div>
+
+      </div>
+
+      <p className="mt-5 text-xs leading-5 text-slate-400">
+        {description}
+      </p>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   MANAGEMENT CARD
+========================================================= */
+
+function ManagementCard({
+  href,
+  title,
+  description,
+  action,
+  icon: Icon,
+  iconBackground,
+  iconColor,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  action: string;
+  icon: React.ElementType;
+  iconBackground: string;
+  iconColor: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
+    >
+
+      <div
+        className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconBackground}`}
+      >
+        <Icon className={`h-6 w-6 ${iconColor}`} />
+      </div>
+
+      <h3 className="mt-5 text-lg font-bold text-brand-dark">
+        {title}
+      </h3>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+
+      <span className="mt-4 inline-flex text-sm font-bold text-brand-green transition group-hover:text-brand-gold">
+        {action} →
+      </span>
+
+    </Link>
+  );
+}
+
+/* =========================================================
+   PAGE
 ========================================================= */
 
 export default async function LecturerDashboardPage() {
 
-  /* ========================================================
-     GET CURRENT LECTURER
-  ======================================================== */
+  /* =======================================================
+     AUTHENTICATE LECTURER
+  ======================================================= */
 
   const lecturer = await requireLecturer();
-
-  /* ========================================================
-     PROTECT DASHBOARD
-  ======================================================== */
 
   if (!lecturer) {
     redirect('/lecturer/login');
   }
+
+  /* =======================================================
+     GET REAL DATABASE STATISTICS
+  ======================================================= */
+
+  const stats = await getDashboardStats(
+    Number(lecturer.id)
+  );
+
+  /* =======================================================
+     PAGE
+  ======================================================= */
 
   return (
     <main className="min-h-screen bg-brand-cream px-4 py-8 sm:px-6 lg:px-8">
@@ -62,34 +399,30 @@ export default async function LecturerDashboardPage() {
       <div className="mx-auto max-w-7xl">
 
         {/* ==================================================
-            PAGE HEADER
+            HEADER
         ================================================== */}
 
         <div className="mb-8">
 
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-gold">
-            Lecturer Portal
-          </p>
-
-          <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
             <div>
 
-              <h1 className="text-2xl font-bold text-brand-dark sm:text-3xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-gold">
+                Lecturer Portal
+              </p>
+
+              <h1 className="mt-1 text-2xl font-bold text-brand-dark sm:text-3xl">
                 Welcome, {lecturer.name}
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Manage your courses, lessons, learning materials,
-                assignments, quizzes, attendance and student grades
-                from one central location.
+                Manage your assigned courses, curriculum, lessons,
+                learning materials, videos and assessments from one
+                central workspace.
               </p>
 
             </div>
-
-            {/* ==================================================
-                ACCOUNT STATUS
-            ================================================== */}
 
             <div className="flex w-fit items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2">
 
@@ -106,7 +439,7 @@ export default async function LecturerDashboardPage() {
         </div>
 
         {/* ==================================================
-            LECTURER INFORMATION
+            WELCOME BANNER
         ================================================== */}
 
         <div className="mb-8 overflow-hidden rounded-3xl bg-brand-green shadow-soft">
@@ -124,15 +457,15 @@ export default async function LecturerDashboardPage() {
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
-                Welcome to your teaching workspace. Everything you
-                need to manage your assigned courses and students is
-                available from the lecturer portal.
+                Everything you need to manage your assigned courses,
+                curriculum, lessons and learning resources is available
+                here.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
 
                 <Link
-                  href="/lecturer/courses"
+                  href="/lecturer/dashboard/courses"
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand-green transition hover:bg-brand-gold hover:text-brand-dark"
                 >
                   <BookOpen className="h-4 w-4" />
@@ -140,7 +473,7 @@ export default async function LecturerDashboardPage() {
                 </Link>
 
                 <Link
-                  href="/lecturer/profile"
+                  href="/lecturer/dashboard/profile"
                   className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
                 >
                   <Users className="h-4 w-4" />
@@ -151,10 +484,6 @@ export default async function LecturerDashboardPage() {
 
             </div>
 
-            {/* ==================================================
-                DECORATIVE CIRCLES
-            ================================================== */}
-
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border-[40px] border-brand-gold/10" />
 
             <div className="pointer-events-none absolute -bottom-28 right-20 h-56 w-56 rounded-full border-[30px] border-white/5" />
@@ -164,146 +493,127 @@ export default async function LecturerDashboardPage() {
         </div>
 
         {/* ==================================================
-            QUICK STATISTICS
+            MAIN STATISTICS
         ================================================== */}
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <section>
 
-          {/* ==================================================
-              MY COURSES
-          ================================================== */}
+          <div className="mb-5">
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <h2 className="text-lg font-bold text-brand-dark">
+              Overview
+            </h2>
 
-            <div className="flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-500">
-                  My Courses
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-brand-dark">
-                  —
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <BookOpen className="h-6 w-6 text-brand-green" />
-              </div>
-
-            </div>
-
-            <p className="mt-5 text-xs text-slate-400">
-              Courses assigned to you
+            <p className="mt-1 text-sm text-slate-500">
+              Real-time statistics from your assigned courses.
             </p>
 
           </div>
 
-          {/* ==================================================
-              MY STUDENTS
-          ================================================== */}
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <StatCard
+              title="My Courses"
+              value={stats.courses}
+              description="Programs assigned to you"
+              icon={BookOpen}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-            <div className="flex items-start justify-between">
+            <StatCard
+              title="My Students"
+              value={stats.students}
+              description="Enrolled students in your assigned programs"
+              icon={GraduationCap}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
-              <div>
+            <StatCard
+              title="Assignments"
+              value={stats.assignments}
+              description="Assignments attached to your lessons"
+              icon={ClipboardCheck}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-                <p className="text-sm font-medium text-slate-500">
-                  My Students
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-brand-dark">
-                  —
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <GraduationCap className="h-6 w-6 text-brand-gold" />
-              </div>
-
-            </div>
-
-            <p className="mt-5 text-xs text-slate-400">
-              Students in your assigned courses
-            </p>
-
-          </div>
-
-          {/* ==================================================
-              ASSIGNMENTS
-          ================================================== */}
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-
-            <div className="flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-500">
-                  Assignments
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-brand-dark">
-                  —
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <ClipboardCheck className="h-6 w-6 text-brand-green" />
-              </div>
-
-            </div>
-
-            <p className="mt-5 text-xs text-slate-400">
-              Assignments you've created
-            </p>
+            <StatCard
+              title="Quizzes & Exams"
+              value={stats.quizzes}
+              description="Quizzes attached to your lessons"
+              icon={BarChart3}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
           </div>
 
-          {/* ==================================================
-              QUIZZES & EXAMS
-          ================================================== */}
+        </section>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        {/* ==================================================
+            CURRICULUM STATISTICS
+        ================================================== */}
 
-            <div className="flex items-start justify-between">
+        <section className="mt-6">
 
-              <div>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
 
-                <p className="text-sm font-medium text-slate-500">
-                  Quizzes & Exams
-                </p>
+            <StatCard
+              title="Units"
+              value={stats.units}
+              description="Units in your assigned programs"
+              icon={Layers3}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-                <p className="mt-2 text-3xl font-bold text-brand-dark">
-                  —
-                </p>
+            <StatCard
+              title="Topics"
+              value={stats.topics}
+              description="Topics inside your assigned units"
+              icon={ListTree}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
-              </div>
+            <StatCard
+              title="Lessons"
+              value={stats.lessons}
+              description="Lessons inside your assigned courses"
+              icon={BookMarked}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <FileText className="h-6 w-6 text-brand-gold" />
-              </div>
+            <StatCard
+              title="Materials"
+              value={stats.materials}
+              description="Learning documents attached to lessons"
+              icon={FileText}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
-            </div>
-
-            <p className="mt-5 text-xs text-slate-400">
-              Assessments you've created
-            </p>
+            <StatCard
+              title="Videos"
+              value={stats.videos}
+              description="Videos attached to lessons"
+              icon={Video}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
           </div>
 
-        </div>
+        </section>
 
         {/* ==================================================
             TEACHING MANAGEMENT
         ================================================== */}
 
-        <div className="mt-8">
+        <section className="mt-10">
 
           <div className="mb-5">
 
@@ -312,7 +622,7 @@ export default async function LecturerDashboardPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Manage your teaching activities and course content.
+              Access and manage your teaching resources.
             </p>
 
           </div>
@@ -321,196 +631,146 @@ export default async function LecturerDashboardPage() {
 
             {/* COURSES */}
 
-            <Link
-              href="/lecturer/courses"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
+            <ManagementCard
+              href="/lecturer/dashboard/courses"
+              title="My Courses"
+              description="View the programs assigned to you and access their curriculum."
+              action="Open Courses"
+              icon={BookOpen}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <BookOpen className="h-6 w-6 text-brand-green" />
-              </div>
+            {/* UNITS */}
 
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                My Courses
-              </h3>
+            <ManagementCard
+              href="/lecturer/dashboard/units"
+              title="Course Units"
+              description="View and manage units belonging to your assigned programs."
+              action="Manage Units"
+              icon={Layers3}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                View and manage the courses assigned to you.
-              </p>
+            {/* TOPICS */}
 
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Open Courses →
-              </span>
-
-            </Link>
+            <ManagementCard
+              href="/lecturer/dashboard/topics"
+              title="Topics"
+              description="Manage topics under the units assigned to your courses."
+              action="Manage Topics"
+              icon={ListTree}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
             {/* LESSONS */}
 
-            <Link
-              href="/lecturer/lessons"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
+            <ManagementCard
+              href="/lecturer/dashboard/lessons"
+              title="Lessons"
+              description="Create, edit and organize lessons under your course topics."
+              action="Manage Lessons"
+              icon={ClipboardList}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <ClipboardList className="h-6 w-6 text-brand-gold" />
-              </div>
+            {/* MATERIALS */}
 
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                Lessons
-              </h3>
+            <ManagementCard
+              href="/lecturer/dashboard/lessons"
+              title="Learning Materials"
+              description="Open a lesson to upload and manage PDFs, notes and other documents."
+              action="Open Lessons"
+              icon={FileText}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Create and organize lessons for your courses.
-              </p>
+            {/* VIDEOS */}
 
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Manage Lessons →
-              </span>
-
-            </Link>
-
-            {/* LEARNING MATERIALS */}
-
-            <Link
-              href="/lecturer/materials"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <FileText className="h-6 w-6 text-brand-green" />
-              </div>
-
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                Learning Materials
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Upload notes, PDFs, videos and other course materials.
-              </p>
-
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Manage Materials →
-              </span>
-
-            </Link>
+            <ManagementCard
+              href="/lecturer/dashboard/lessons"
+              title="Lesson Videos"
+              description="Open a lesson to add and manage uploaded or external videos."
+              action="Open Lessons"
+              icon={Video}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
             {/* ASSIGNMENTS */}
 
-            <Link
-              href="/lecturer/assignments"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <ClipboardCheck className="h-6 w-6 text-brand-gold" />
-              </div>
-
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                Assignments
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Create assignments and review student submissions.
-              </p>
-
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Manage Assignments →
-              </span>
-
-            </Link>
+            <ManagementCard
+              href="/lecturer/dashboard/assignments"
+              title="Assignments"
+              description="Create assignments and manage questions and marks for your lessons."
+              action="Manage Assignments"
+              icon={ClipboardCheck}
+              iconBackground="bg-brand-green/10"
+              iconColor="text-brand-green"
+            />
 
             {/* QUIZZES */}
 
-            <Link
-              href="/lecturer/quizzes"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <BarChart3 className="h-6 w-6 text-brand-green" />
-              </div>
-
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                Quizzes & Exams
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Create quizzes, exams and manage assessment questions.
-              </p>
-
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Manage Assessments →
-              </span>
-
-            </Link>
-
-            {/* ATTENDANCE */}
-
-            <Link
-              href="/lecturer/attendance"
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:-translate-y-1 hover:border-brand-green/30 hover:shadow-lg"
-            >
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <CalendarCheck className="h-6 w-6 text-brand-gold" />
-              </div>
-
-              <h3 className="mt-5 text-lg font-bold text-brand-dark">
-                Attendance
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Record and monitor attendance for your students.
-              </p>
-
-              <span className="mt-4 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-                Take Attendance →
-              </span>
-
-            </Link>
+            <ManagementCard
+              href="/lecturer/dashboard/quizzes"
+              title="Quizzes & Exams"
+              description="Create quizzes, manage questions and configure assessments."
+              action="Manage Assessments"
+              icon={BarChart3}
+              iconBackground="bg-brand-gold/15"
+              iconColor="text-brand-gold"
+            />
 
           </div>
 
-        </div>
+        </section>
 
         {/* ==================================================
             QUICK ACTIONS
         ================================================== */}
 
-        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 
-          <div>
+          <h2 className="text-lg font-bold text-brand-dark">
+            Quick Actions
+          </h2>
 
-            <h2 className="text-lg font-bold text-brand-dark">
-              Quick Actions
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Frequently used lecturer functions.
-            </p>
-
-          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Frequently used lecturer functions.
+          </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
 
             <Link
-              href="/lecturer/materials/new"
+              href="/lecturer/dashboard/lessons"
               className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark"
             >
               <PlusCircle className="h-4 w-4" />
-              Upload Material
+              Manage Lessons
             </Link>
 
             <Link
-              href="/lecturer/lessons/new"
+              href="/lecturer/dashboard/lessons"
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
             >
-              <BookOpen className="h-4 w-4" />
-              Create Lesson
+              <FileText className="h-4 w-4" />
+              Add Material
             </Link>
 
             <Link
-              href="/lecturer/assignments/new"
+              href="/lecturer/dashboard/lessons"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
+            >
+              <Video className="h-4 w-4" />
+              Add Video
+            </Link>
+
+            <Link
+              href="/lecturer/dashboard/assignments"
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
             >
               <ClipboardCheck className="h-4 w-4" />
@@ -518,104 +778,78 @@ export default async function LecturerDashboardPage() {
             </Link>
 
             <Link
-              href="/lecturer/quizzes/new"
+              href="/lecturer/dashboard/quizzes"
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
             >
-              <FileText className="h-4 w-4" />
+              <BarChart3 className="h-4 w-4" />
               Create Quiz
-            </Link>
-
-            <Link
-              href="/lecturer/attendance"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
-            >
-              <CalendarCheck className="h-4 w-4" />
-              Take Attendance
             </Link>
 
           </div>
 
-        </div>
+        </section>
 
         {/* ==================================================
-            COMMUNICATION
+            CONTENT SUMMARY
         ================================================== */}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <section className="mt-8">
 
-          {/* ANNOUNCEMENTS */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 
-          <Link
-            href="/lecturer/announcements"
-            className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:border-brand-green/30 hover:shadow-lg"
-          >
-
-            <div className="flex items-center gap-4">
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green/10">
-                <Megaphone className="h-6 w-6 text-brand-green" />
-              </div>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
 
-                <h2 className="text-lg font-bold text-brand-dark">
-                  Announcements
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-gold">
+                  Your Teaching Content
+                </p>
+
+                <h2 className="mt-1 text-lg font-bold text-brand-dark">
+                  Curriculum at a glance
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Post important announcements for your students.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Your lecturer account currently has access to{' '}
+                  <span className="font-bold text-brand-dark">
+                    {stats.courses}
+                  </span>{' '}
+                  course{stats.courses === 1 ? '' : 's'}, containing{' '}
+                  <span className="font-bold text-brand-dark">
+                    {stats.units}
+                  </span>{' '}
+                  unit{stats.units === 1 ? '' : 's'},{' '}
+                  <span className="font-bold text-brand-dark">
+                    {stats.topics}
+                  </span>{' '}
+                  topic{stats.topics === 1 ? '' : 's'} and{' '}
+                  <span className="font-bold text-brand-dark">
+                    {stats.lessons}
+                  </span>{' '}
+                  lesson{stats.lessons === 1 ? '' : 's'}.
                 </p>
 
               </div>
 
-            </div>
-
-            <span className="mt-5 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-              Manage Announcements →
-            </span>
-
-          </Link>
-
-          {/* NOTIFICATIONS */}
-
-          <Link
-            href="/lecturer/notifications"
-            className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition hover:border-brand-green/30 hover:shadow-lg"
-          >
-
-            <div className="flex items-center gap-4">
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold/15">
-                <Bell className="h-6 w-6 text-brand-gold" />
-              </div>
-
-              <div>
-
-                <h2 className="text-lg font-bold text-brand-dark">
-                  Notifications
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  View updates and important LMS notifications.
-                </p>
-
-              </div>
+              <Link
+                href="/lecturer/dashboard/courses"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark"
+              >
+                <BookOpen className="h-4 w-4" />
+                View Curriculum
+              </Link>
 
             </div>
 
-            <span className="mt-5 inline-flex text-sm font-bold text-brand-green group-hover:text-brand-gold">
-              View Notifications →
-            </span>
+          </div>
 
-          </Link>
-
-        </div>
+        </section>
 
         {/* ==================================================
-            ACCOUNT INFORMATION
+            ACCOUNT
         ================================================== */}
 
-        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -642,7 +876,7 @@ export default async function LecturerDashboardPage() {
             </div>
 
             <Link
-              href="/lecturer/profile"
+              href="/lecturer/dashboard/profile"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-brand-dark transition hover:border-brand-green hover:text-brand-green"
             >
               <Users className="h-4 w-4" />
@@ -651,10 +885,10 @@ export default async function LecturerDashboardPage() {
 
           </div>
 
-        </div>
+        </section>
 
         {/* ==================================================
-            FOOTER MESSAGE
+            FOOTER
         ================================================== */}
 
         <div className="mt-8 overflow-hidden rounded-3xl bg-brand-green shadow-soft">
@@ -677,8 +911,6 @@ export default async function LecturerDashboardPage() {
               </p>
 
             </div>
-
-            {/* Decorative circles */}
 
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border-[40px] border-brand-gold/10" />
 

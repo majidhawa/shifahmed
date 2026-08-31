@@ -21,6 +21,7 @@ import {
   X,
   GraduationCap,
   Loader2,
+  Video,
 } from 'lucide-react';
 
 /* =========================================================
@@ -34,6 +35,7 @@ import {
    /lecturer/dashboard/units
    /lecturer/dashboard/lessons
    /lecturer/dashboard/materials
+    /lecturer/dashboard/videos
    /lecturer/dashboard/assignments
    /lecturer/dashboard/quizzes
    /lecturer/dashboard/grades
@@ -106,12 +108,7 @@ const navigationSections: NavigationSection[] = [
         href: '/lecturer/dashboard/lessons',
         icon: ClipboardList,
       },
-
-      {
-        label: 'Learning Materials',
-        href: '/lecturer/dashboard/materials',
-        icon: FileText,
-      },
+      
     ],
   },
 
