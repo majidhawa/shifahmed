@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
+  Bell,
   ClipboardList,
   CreditCard,
   FileText,
@@ -75,6 +76,16 @@ const navigation = [
     name: 'LMS',
     href: '/admin/dashboard/lms',
     icon: Notebook,
+  },
+    {
+    name: 'Announcements',
+    href: '/admin/dashboard/announcements',
+    icon: Bell,
+  },
+    {
+    name: 'Timetables',
+    href: '/admin/dashboard/timetable',
+    icon: Bell,
   },
 ];
 

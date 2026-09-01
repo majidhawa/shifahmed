@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Loader2,
   Video,
+  Notebook,
 } from 'lucide-react';
 
 /* =========================================================
@@ -171,6 +172,11 @@ const navigationSections: NavigationSection[] = [
 
     items: [
       {
+        label: 'Timetable',
+        href: '/lecturer/dashboard/timetable',
+        icon: Notebook,
+      },
+      {
         label: 'Announcements',
         href: '/lecturer/dashboard/announcements',
         icon: Megaphone,
@@ -183,6 +189,7 @@ const navigationSections: NavigationSection[] = [
       },
     ],
   },
+  
 
   /* =======================================================
      ACCOUNT
