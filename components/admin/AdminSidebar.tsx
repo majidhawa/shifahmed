@@ -57,6 +57,11 @@ const navigation = [
     icon: GraduationCap,
   },
   {
+    name: 'Assign students',
+    href: '/admin/dashboard/assign-students',
+    icon: Users,
+  },
+  {
     name: 'Documents',
     href: '/admin/dashboard/documents',
     icon: FileText,

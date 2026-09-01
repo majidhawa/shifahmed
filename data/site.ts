@@ -164,7 +164,7 @@ export const courses: Course[] = [
     cardTitle: 'Emergency Medical Technology(EMT)',
     duration: '1 Year',
     fee: 'KSh 58,000',
-    entry: 'KCSE D- and above',
+    entry: 'KCSE C- and above',
     heroImage: '/images/emt.png',
     summary: 'The Emergency Medical Technology (EMT) program equips students with the essential knowledge and practical skills required to provide immediate life-saving care during medical emergencies.',
     overview: [
@@ -191,7 +191,7 @@ export const courses: Course[] = [
       'Individuals seeking a career in emergency medicine'
     ],
     entryRequirements: [
-      'KCSE Mean Grade D- and Above',
+      'KCSE Mean Grade C- and Above',
 'Passion for emergency medical care',
 'Good communication and interpersonal skills',
 'Physically and mentally fit to undertake practical emergency training'
@@ -203,7 +203,7 @@ export const courses: Course[] = [
     title: 'German Language',
     cardTitle: 'Certificate in German Language',
     duration: '2-3 Months',
-    fee: 'KSh 16,500 for A1&A2 And 20,000 for B1&B2',
+    fee: 'KSh 16,500 for A1&A2 And 20,500 for B1&B2',
     entry: 'Open to all',
     heroImage: '/images/german.png',
     summary: 'The German Language program equips learners with practical communication skills for study, employment, and migration opportunities in Germany, Austria, and Switzerland.',
