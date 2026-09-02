@@ -7,6 +7,7 @@ import path from 'path';
 import { requireAdmin } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 type RouteContext = {
   params: Promise<{
@@ -14,10 +15,31 @@ type RouteContext = {
   }>;
 };
 
+/* =========================================================
+   GET /api/admin/admissions/[id]/letter
+
+   IMPORTANT WORKFLOW
+
+   1. Authenticate admin.
+   2. Find the admission.
+   3. Check admission_letter_pdf.
+   4. If PDF already exists:
+        → return the saved PDF.
+   5. If PDF does not exist:
+        → generate the PDF.
+        → save it into admissions.admission_letter_pdf.
+        → save the document path.
+        → return the saved PDF.
+
+   The admission number is NEVER regenerated here.
+========================================================= */
+
 export async function GET(
   request: Request,
   context: RouteContext
 ) {
+  const client = await pool.connect();
+
   try {
     /* =====================================================
        ADMIN AUTHENTICATION
@@ -67,15 +89,21 @@ export async function GET(
     }
 
     console.log('====================================');
-    console.log('GENERATING SMTC ADMISSION LETTER');
+    console.log('SMTC ADMISSION LETTER REQUEST');
     console.log('Admission ID:', admissionId);
     console.log('====================================');
 
     /* =====================================================
        GET ADMISSION + APPLICATION
+
+       We lock the admission row while checking/generating
+       the document. This prevents two simultaneous requests
+       from both generating and saving different PDFs.
     ===================================================== */
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    const result = await client.query(
       `
         SELECT
           a.id AS admission_id,
@@ -87,8 +115,10 @@ export async function GET(
           a.intake,
           a.admission_date,
           a.admission_status,
+          a.admission_letter_path,
+          a.admission_letter_pdf,
 
-          app.id,
+          app.id AS app_id,
           app.application_number AS app_application_number,
           app.surname,
           app.middle_name,
@@ -121,6 +151,8 @@ export async function GET(
         WHERE a.id = $1
 
         LIMIT 1
+
+        FOR UPDATE OF a
       `,
       [admissionId]
     );
@@ -130,6 +162,8 @@ export async function GET(
     ===================================================== */
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+
       return NextResponse.json(
         {
           success: false,
@@ -151,10 +185,12 @@ export async function GET(
     ===================================================== */
 
     if (
-      String(admission.admission_status)
+      String(admission.admission_status || '')
         .trim()
         .toLowerCase() !== 'active'
     ) {
+      await client.query('ROLLBACK');
+
       return NextResponse.json(
         {
           success: false,
@@ -164,6 +200,76 @@ export async function GET(
         { status: 403 }
       );
     }
+
+    /* =====================================================
+       CHECK FOR EXISTING SAVED PDF
+    ===================================================== */
+
+    if (admission.admission_letter_pdf) {
+      console.log(
+        'Saved admission letter found.'
+      );
+
+      console.log(
+        'Returning existing PDF without regeneration.'
+      );
+
+      await client.query('COMMIT');
+
+      const safeAdmissionNumber =
+        String(
+          admission.admission_number ||
+            admission.application_number ||
+            admissionId
+        ).replace(
+          /[^a-zA-Z0-9_-]/g,
+          '-'
+        );
+
+      const savedPdf =
+        Buffer.isBuffer(
+          admission.admission_letter_pdf
+        )
+          ? admission.admission_letter_pdf
+          : Buffer.from(
+              admission.admission_letter_pdf
+            );
+
+      return new NextResponse(
+        new Uint8Array(savedPdf),
+        {
+          status: 200,
+
+          headers: {
+            'Content-Type':
+              'application/pdf',
+
+            'Content-Disposition':
+              `attachment; filename="SMTC-Admission-Letter-${safeAdmissionNumber}.pdf"`,
+
+            'Content-Length':
+              String(savedPdf.length),
+
+            'Cache-Control':
+              'private, no-store, no-cache, must-revalidate',
+
+            'Pragma':
+              'no-cache',
+
+            'Expires':
+              '0',
+          },
+        }
+      );
+    }
+
+    console.log(
+      'No saved admission letter found.'
+    );
+
+    console.log(
+      'Generating admission letter for the first time.'
+    );
 
     /* =====================================================
        FONT PATHS
@@ -224,16 +330,25 @@ export async function GET(
       fs.existsSync(logoPath);
 
     const signatureExists =
-      fs.existsSync(principalSignaturePath);
+      fs.existsSync(
+        principalSignaturePath
+      );
 
     const stampExists =
-      fs.existsSync(collegeStampPath);
+      fs.existsSync(
+        collegeStampPath
+      );
 
-    console.log('Logo:', logoExists);
+    console.log(
+      'Logo:',
+      logoExists
+    );
+
     console.log(
       'Principal signature:',
       signatureExists
     );
+
     console.log(
       'College stamp:',
       stampExists
@@ -241,6 +356,13 @@ export async function GET(
 
     /* =====================================================
        APPLICANT NAME
+
+       Your applications table stores:
+       surname
+       middle_name
+       first_name
+
+       We preserve your existing ordering.
     ===================================================== */
 
     const applicantName = [
@@ -249,7 +371,9 @@ export async function GET(
       admission.first_name,
     ]
       .filter(Boolean)
-      .join(' ');
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     const firstName =
       admission.first_name ||
@@ -298,11 +422,6 @@ export async function GET(
 
     /* =====================================================
        CREATE ONE A4 PAGE
-
-       IMPORTANT:
-       We use fixed coordinates throughout the document.
-       This prevents PDFKit from creating additional blank
-       pages because of doc.y overflow.
     ===================================================== */
 
     const doc = new PDFDocument({
@@ -310,15 +429,20 @@ export async function GET(
       margin: 40,
       bufferPages: true,
 
-      // IMPORTANT:
-      // Prevent PDFKit from falling back to Helvetica.afm
+      /*
+       * IMPORTANT:
+       * Explicitly provide the custom font so PDFKit
+       * does not attempt to use Helvetica.afm.
+       */
       font: regularFontPath,
 
       info: {
         Title:
           `SMTC Admission Letter - ${admission.admission_number}`,
+
         Author:
           'Shifah Medical Training College',
+
         Subject:
           'Official Admission Letter',
       },
@@ -753,7 +877,9 @@ export async function GET(
 
     const detailX = left + 155;
 
-    /* Admission number */
+    /* =====================================================
+       ADMISSION NUMBER
+    ===================================================== */
 
     doc
       .fillColor(COLORS.gray)
@@ -782,7 +908,9 @@ export async function GET(
         }
       );
 
-    /* Programme */
+    /* =====================================================
+       PROGRAMME
+    ===================================================== */
 
     doc
       .fillColor(COLORS.gray)
@@ -810,7 +938,9 @@ export async function GET(
         }
       );
 
-    /* Intake */
+    /* =====================================================
+       INTAKE
+    ===================================================== */
 
     doc
       .fillColor(COLORS.gray)
@@ -964,14 +1094,6 @@ export async function GET(
        PRINCIPAL SIGNATURE
     ===================================================== */
 
-    /*
-     * Professional signature size:
-     *
-     * The signature is kept proportional and slightly
-     * smaller than the stamp so it looks like a genuine
-     * handwritten signature rather than a large graphic.
-     */
-
     const signatureX = left;
     const signatureY = 680;
 
@@ -996,13 +1118,6 @@ export async function GET(
     /* =====================================================
        COLLEGE STAMP
     ===================================================== */
-
-    /*
-     * Professional official stamp size.
-     *
-     * Positioned close to the signature without
-     * overpowering the document.
-     */
 
     const stampX = left + 285;
     const stampY = 674;
@@ -1138,13 +1253,19 @@ export async function GET(
       );
 
     /* =====================================================
-       FINISH PDF
+       FINISH PDF GENERATION
     ===================================================== */
 
     doc.end();
 
     const pdfBuffer =
       await pdfPromise;
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      throw new Error(
+        'Generated admission letter PDF is empty.'
+      );
+    }
 
     console.log(
       'Admission letter generated successfully.'
@@ -1170,8 +1291,85 @@ export async function GET(
         '-'
       );
 
+    const filename =
+      `SMTC-Admission-Letter-${safeAdmissionNumber}.pdf`;
+
+    /*
+     * This path is informational/compatibility metadata.
+     *
+     * The actual PDF is stored in:
+     *
+     * admissions.admission_letter_pdf
+     */
+    const letterPath =
+      `/api/admin/admissions/${admissionId}/letter`;
+
     /* =====================================================
-       RETURN PDF
+       SAVE GENERATED PDF INTO ADMISSIONS
+    ===================================================== */
+
+    const updateResult =
+      await client.query(
+        `
+          UPDATE admissions
+          SET
+            admission_letter_pdf = $1,
+            admission_letter_path = $2,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $3
+          RETURNING
+            id,
+            admission_number,
+            admission_letter_path,
+            admission_letter_pdf IS NOT NULL AS letter_saved
+        `,
+        [
+          pdfBuffer,
+          letterPath,
+          admissionId,
+        ]
+      );
+
+    if (
+      updateResult.rowCount === 0
+    ) {
+      throw new Error(
+        'Failed to save the admission letter to the admissions table.'
+      );
+    }
+
+    const savedAdmission =
+      updateResult.rows[0];
+
+    if (!savedAdmission.letter_saved) {
+      throw new Error(
+        'Admission letter was generated but could not be confirmed as saved.'
+      );
+    }
+
+    console.log(
+      'Admission letter saved successfully.'
+    );
+
+    console.log(
+      'Admission ID:',
+      admissionId
+    );
+
+    console.log(
+      'Admission Number:',
+      admission.admission_number
+    );
+
+    console.log(
+      'Filename:',
+      filename
+    );
+
+    await client.query('COMMIT');
+
+    /* =====================================================
+       RETURN THE SAVED PDF
     ===================================================== */
 
     return new NextResponse(
@@ -1184,13 +1382,17 @@ export async function GET(
             'application/pdf',
 
           'Content-Disposition':
-            `attachment; filename="SMTC-Admission-Letter-${safeAdmissionNumber}.pdf"`,
+            `attachment; filename="${filename}"`,
 
           'Content-Length':
             String(pdfBuffer.length),
 
+          /*
+           * Prevent browsers/proxies from caching an old
+           * admission letter.
+           */
           'Cache-Control':
-            'no-store, no-cache, must-revalidate',
+            'private, no-store, no-cache, must-revalidate',
 
           'Pragma':
             'no-cache',
@@ -1202,12 +1404,27 @@ export async function GET(
     );
 
   } catch (error) {
+    /* =====================================================
+       ROLLBACK
+    ===================================================== */
+
+    try {
+      await client.query(
+        'ROLLBACK'
+      );
+    } catch (rollbackError) {
+      console.error(
+        'Rollback failed:',
+        rollbackError
+      );
+    }
+
     console.error(
       '===================================='
     );
 
     console.error(
-      'ADMISSION LETTER GENERATION ERROR'
+      'ADMISSION LETTER ERROR'
     );
 
     console.error(
@@ -1232,5 +1449,9 @@ export async function GET(
         status: 500,
       }
     );
+
+  } finally {
+    client.release();
   }
 }
+

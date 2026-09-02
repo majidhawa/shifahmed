@@ -1,3 +1,5 @@
+// app/student/dashboard/page.tsx
+
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,6 +25,7 @@ import {
   CalendarDays,
   BookOpen,
   ShieldCheck,
+  Award,
 } from 'lucide-react';
 
 /* =========================================================
@@ -48,12 +51,6 @@ export default async function StudentDashboardPage() {
   ======================================================= */
 
   const session = await getStudentSession();
-
-  /*
-    If the student has logged out, the session will no
-    longer exist and they will immediately be sent back
-    to the login page.
-  */
 
   if (!session) {
     redirect('/student/login');
@@ -169,10 +166,14 @@ export default async function StudentDashboardPage() {
     'Pending';
 
   const normalizedApplicationStatus =
-    String(applicationStatus).toLowerCase();
+    String(applicationStatus)
+      .trim()
+      .toLowerCase();
 
   const normalizedPaymentStatus =
-    String(paymentStatus).toLowerCase();
+    String(paymentStatus)
+      .trim()
+      .toLowerCase();
 
   const paymentComplete =
     normalizedPaymentStatus === 'paid';
@@ -185,6 +186,120 @@ export default async function StudentDashboardPage() {
     ].includes(
       normalizedApplicationStatus
     );
+
+  /* =======================================================
+     ADMISSION RECORD
+
+     IMPORTANT:
+
+     The official admission number comes ONLY from the
+     admissions table.
+
+     We do not use the application number as an admission
+     number.
+
+     Example:
+     Application Number: SMTC/2026/D19B0678
+     Admission Number:   SMTC/GEM01/026
+  ======================================================= */
+
+  let admission: {
+    id: number;
+    admission_number: string | null;
+    application_number: string | null;
+    course: string | null;
+    intake: string | null;
+    admission_status: string | null;
+    admission_date: string | Date | null;
+  } | null = null;
+
+  if (applicationApproved) {
+    const admissionResult = await pool.query(
+      `
+        SELECT
+          id,
+          admission_number,
+          application_number,
+          course,
+          intake,
+          admission_status,
+          admission_date
+
+        FROM admissions
+
+        WHERE application_id = $1
+
+        LIMIT 1
+      `,
+      [
+        student.id,
+      ]
+    );
+
+    if (admissionResult.rows.length > 0) {
+      const row = admissionResult.rows[0];
+
+      admission = {
+        id: Number(row.id),
+
+        admission_number:
+          row.admission_number
+            ? String(
+                row.admission_number
+              ).trim()
+            : null,
+
+        application_number:
+          row.application_number
+            ? String(
+                row.application_number
+              ).trim()
+            : null,
+
+        course:
+          row.course
+            ? String(row.course)
+            : null,
+
+        intake:
+          row.intake
+            ? String(row.intake)
+            : null,
+
+        admission_status:
+          row.admission_status
+            ? String(
+                row.admission_status
+              )
+            : null,
+
+        admission_date:
+          row.admission_date || null,
+      };
+    }
+  }
+
+  /* =======================================================
+     ADMISSION STATUS
+  ======================================================= */
+
+  const normalizedAdmissionStatus =
+    String(
+      admission?.admission_status || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  const hasActiveAdmission =
+    Boolean(admission) &&
+    normalizedAdmissionStatus === 'active';
+
+  /* =======================================================
+     OFFICIAL ADMISSION NUMBER
+  ======================================================= */
+
+  const admissionNumber =
+    admission?.admission_number || null;
 
   /* =======================================================
      PROGRESS
@@ -247,7 +362,9 @@ export default async function StudentDashboardPage() {
   function statusStyle(status: string) {
 
     const value =
-      status.toLowerCase();
+      status
+        .trim()
+        .toLowerCase();
 
     if (
       value === 'paid' ||
@@ -318,8 +435,6 @@ export default async function StudentDashboardPage() {
             className="flex items-center gap-3"
           >
 
-            {/* COLLEGE LOGO */}
-
             <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-white/20">
 
               <Image
@@ -332,8 +447,6 @@ export default async function StudentDashboardPage() {
               />
 
             </div>
-
-            {/* BRAND TEXT */}
 
             <div className="min-w-0">
 
@@ -502,8 +615,6 @@ export default async function StudentDashboardPage() {
 
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
 
-            {/* PAGE TITLE */}
-
             <div>
 
               <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#0f4f3f]">
@@ -515,8 +626,6 @@ export default async function StudentDashboardPage() {
               </h1>
 
             </div>
-
-            {/* RIGHT SIDE */}
 
             <div className="flex items-center gap-4">
 
@@ -604,23 +713,69 @@ export default async function StudentDashboardPage() {
 
                 </div>
 
-                <div className="shrink-0 rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+                {/* =================================================
+                    APPLICATION / ADMISSION NUMBERS
+                ================================================= */}
 
-                  <p className="text-xs uppercase tracking-wider text-white/50">
-                    Application Number
-                  </p>
+                <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:min-w-[430px]">
 
-                  <p className="mt-2 font-mono text-sm font-bold text-white">
-                    {student.application_number}
-                  </p>
+                  {/* APPLICATION NUMBER */}
 
-                  <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
+                  <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
 
-                    <CalendarDays
-                      size={14}
-                    />
+                    <p className="text-xs uppercase tracking-wider text-white/50">
+                      Application Number
+                    </p>
 
-                    Applied {applicationDate}
+                    <p className="mt-2 break-all font-mono text-sm font-bold text-white">
+                      {student.application_number}
+                    </p>
+
+                    <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
+
+                      <CalendarDays
+                        size={14}
+                      />
+
+                      Applied {applicationDate}
+
+                    </div>
+
+                  </div>
+
+                  {/* ADMISSION NUMBER */}
+
+                  <div className="rounded-2xl border border-[#d7a93b]/30 bg-[#d7a93b]/10 p-5 backdrop-blur">
+
+                    <div className="flex items-center justify-between gap-2">
+
+                      <p className="text-xs uppercase tracking-wider text-[#d7a93b]/80">
+                        Admission Number
+                      </p>
+
+                      <Award
+                        size={17}
+                        className="text-[#d7a93b]"
+                      />
+
+                    </div>
+
+                    <p className="mt-2 break-all font-mono text-sm font-bold text-[#d7a93b]">
+
+                      {admissionNumber ||
+                        'Not Yet Assigned'}
+
+                    </p>
+
+                    <p className="mt-3 text-xs text-white/50">
+
+                      {hasActiveAdmission
+                        ? 'Official admission record'
+                        : applicationApproved
+                        ? 'Awaiting admission record'
+                        : 'Available after admission'}
+
+                    </p>
 
                   </div>
 
@@ -636,9 +791,13 @@ export default async function StudentDashboardPage() {
 
             <section className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
+              {/* APPLICATION STATUS */}
+
               <StatusCard
                 title="Application Status"
-                value={applicationStatus}
+                value={String(
+                  applicationStatus
+                )}
                 icon={
                   <FileText
                     size={21}
@@ -647,9 +806,13 @@ export default async function StudentDashboardPage() {
                 style={applicationStyle}
               />
 
+              {/* PAYMENT STATUS */}
+
               <StatusCard
                 title="Payment Status"
-                value={paymentStatus}
+                value={String(
+                  paymentStatus
+                )}
                 icon={
                   <CreditCard
                     size={21}
@@ -658,33 +821,52 @@ export default async function StudentDashboardPage() {
                 style={paymentStyle}
               />
 
+              {/* =================================================
+                  ADMISSION NUMBER CARD
+              ================================================= */}
+
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
 
                 <div className="flex items-center justify-between">
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
 
-                    <BookOpen
+                    <GraduationCap
                       size={21}
                     />
 
                   </div>
 
                   <span className="text-xs font-medium text-gray-400">
-                    COURSE
+                    ADMISSION
                   </span>
 
                 </div>
 
                 <p className="mt-5 text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Selected Course
+                  Admission Number
                 </p>
 
-                <p className="mt-1 line-clamp-2 text-sm font-bold leading-6 text-[#0c1f1a]">
-                  {student.course}
+                <p className="mt-1 break-all font-mono text-sm font-bold leading-6 text-[#0f4f3f]">
+
+                  {admissionNumber ||
+                    'Not Yet Assigned'}
+
+                </p>
+
+                <p className="mt-2 text-xs text-gray-400">
+
+                  {hasActiveAdmission
+                    ? 'Official admission number'
+                    : applicationApproved
+                    ? 'Awaiting admission record'
+                    : 'Assigned after approval'}
+
                 </p>
 
               </div>
+
+              {/* DOCUMENTS */}
 
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
 
@@ -792,7 +974,9 @@ export default async function StudentDashboardPage() {
                     title="Admission Decision"
                     description={
                       applicationApproved
-                        ? 'You have been admitted.'
+                        ? hasActiveAdmission
+                          ? `Admitted • ${admissionNumber || 'Admission number pending'}`
+                          : 'You have been admitted. Admission record pending.'
                         : 'Awaiting admission decision.'
                     }
                     complete={
@@ -838,6 +1022,27 @@ export default async function StudentDashboardPage() {
 
                 </div>
 
+                {/* =================================================
+                    ADMISSION NUMBER
+                ================================================= */}
+
+                <div className="mt-5 border-t border-white/10 pt-5">
+
+                  <p className="text-xs text-white/40">
+                    Admission Number
+                  </p>
+
+                  <p className="mt-1 break-all font-mono text-sm font-bold text-[#d7a93b]">
+
+                    {admissionNumber ||
+                      'Not Yet Assigned'}
+
+                  </p>
+
+                </div>
+
+                {/* APPLICATION FEE */}
+
                 <div className="mt-5 border-t border-white/10 pt-5">
 
                   <p className="text-xs text-white/40">
@@ -865,6 +1070,10 @@ export default async function StudentDashboardPage() {
             ================================================= */}
 
             <section className="mt-6 grid gap-6 lg:grid-cols-2">
+
+              {/* =================================================
+                  APPLICATION INFORMATION
+              ================================================= */}
 
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
 
@@ -906,7 +1115,26 @@ export default async function StudentDashboardPage() {
 
                   <DetailRow
                     label="Application Number"
-                    value={student.application_number}
+                    value={
+                      student.application_number
+                    }
+                  />
+
+                  {/* =================================================
+                      ADMISSION NUMBER
+                  ================================================= */}
+
+                  <DetailRow
+                    label="Admission Number"
+                    value={
+                      admissionNumber ||
+                      'Not Yet Assigned'
+                    }
+                    highlight={
+                      Boolean(
+                        admissionNumber
+                      )
+                    }
                   />
 
                   <DetailRow
@@ -921,7 +1149,10 @@ export default async function StudentDashboardPage() {
 
                   <DetailRow
                     label="County"
-                    value={student.county || '—'}
+                    value={
+                      student.county ||
+                      '—'
+                    }
                   />
 
                 </div>
@@ -1266,9 +1497,11 @@ function ProgressStep({
 function DetailRow({
   label,
   value,
+  highlight = false,
 }: {
   label: string;
   value: string | null | undefined;
+  highlight?: boolean;
 }) {
 
   return (
@@ -1278,7 +1511,20 @@ function DetailRow({
         {label}
       </p>
 
-      <p className="max-w-[60%] break-all text-right text-sm font-semibold text-gray-800">
+      <p
+        className={`
+          max-w-[60%]
+          break-all
+          text-right
+          text-sm
+          font-semibold
+          ${
+            highlight
+              ? 'font-mono text-[#0f4f3f]'
+              : 'text-gray-800'
+          }
+        `}
+      >
         {value || '—'}
       </p>
 

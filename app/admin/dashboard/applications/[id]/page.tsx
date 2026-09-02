@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -140,6 +139,30 @@ function formatCurrency(value: number) {
   }).format(Number(value || 0));
 }
 
+function isApproved(status?: string | null) {
+  return (
+    String(status || '')
+      .trim()
+      .toLowerCase() === 'approved'
+  );
+}
+
+function isPaid(status?: string | null) {
+  return (
+    String(status || '')
+      .trim()
+      .toLowerCase() === 'paid'
+  );
+}
+
+function isActive(status?: string | null) {
+  return (
+    String(status || '')
+      .trim()
+      .toLowerCase() === 'active'
+  );
+}
+
 /* =========================================================
    INFO ROW
 ========================================================= */
@@ -217,15 +240,12 @@ function DocumentCard({
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-
       <div className="flex min-w-0 items-center gap-3">
-
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-green/10">
           <FileText className="h-5 w-5 text-brand-green" />
         </div>
 
         <div className="min-w-0">
-
           <p className="truncate text-sm font-bold text-brand-dark">
             {title}
           </p>
@@ -233,9 +253,7 @@ function DocumentCard({
           <p className="mt-1 text-xs text-slate-400">
             Uploaded document
           </p>
-
         </div>
-
       </div>
 
       <a
@@ -248,7 +266,6 @@ function DocumentCard({
 
         <ExternalLink className="h-3.5 w-3.5" />
       </a>
-
     </div>
   );
 }
@@ -275,6 +292,9 @@ export default function ApplicationDetailsPage() {
     useState(false);
 
   const [admissionLoading, setAdmissionLoading] =
+    useState(false);
+
+  const [letterLoading, setLetterLoading] =
     useState(false);
 
   const [error, setError] =
@@ -312,7 +332,6 @@ export default function ApplicationDetailsPage() {
         }
 
         setApplication(data.application);
-
       } catch (err) {
         console.error(err);
 
@@ -321,7 +340,6 @@ export default function ApplicationDetailsPage() {
             ? err.message
             : 'Unable to load application.'
         );
-
       } finally {
         setLoading(false);
       }
@@ -355,7 +373,6 @@ export default function ApplicationDetailsPage() {
         if (response.ok && data.success) {
           setAdmission(data.admission);
         }
-
       } catch (err) {
         console.error(
           'LOAD ADMISSION ERROR:',
@@ -423,12 +440,18 @@ export default function ApplicationDetailsPage() {
 
       setApplication(data.application);
 
+      /*
+       * Refresh the admission because changing the
+       * application status affects whether the admission
+       * letter can be downloaded.
+       */
+      await loadAdmission();
+
       setSuccess(
         newStatus === 'Approved'
-          ? 'Application approved successfully.'
-          : 'Application rejected successfully.'
+          ? 'Application approved successfully. The admission letter is now available if an active admission exists.'
+          : 'Application rejected successfully. The admission letter is no longer available for download.'
       );
-
     } catch (err) {
       console.error(err);
 
@@ -437,7 +460,6 @@ export default function ApplicationDetailsPage() {
           ? err.message
           : 'Unable to update application.'
       );
-
     } finally {
       setActionLoading(false);
     }
@@ -445,14 +467,20 @@ export default function ApplicationDetailsPage() {
 
   /* =======================================================
      CREATE ADMISSION
+
+     The admission API is responsible for assigning the
+     permanent admission number.
+
+     THIS PAGE NEVER GENERATES AN ADMISSION NUMBER.
   ======================================================= */
 
   async function createAdmission() {
     if (!application) return;
 
     if (
-      application.application_status !==
-      'Approved'
+      !isApproved(
+        application.application_status
+      )
     ) {
       setError(
         'The application must be approved before creating an admission.'
@@ -462,8 +490,9 @@ export default function ApplicationDetailsPage() {
     }
 
     if (
-      application.payment_status !==
-      'paid'
+      !isPaid(
+        application.payment_status
+      )
     ) {
       setError(
         'The application fee must be paid before creating an admission.'
@@ -516,6 +545,7 @@ export default function ApplicationDetailsPage() {
           'Admission created successfully.'
       );
 
+      await loadAdmission();
     } catch (err) {
       console.error(err);
 
@@ -524,9 +554,167 @@ export default function ApplicationDetailsPage() {
           ? err.message
           : 'Unable to create admission.'
       );
-
     } finally {
       setAdmissionLoading(false);
+    }
+  }
+
+  /* =======================================================
+     DOWNLOAD ADMISSION LETTER
+
+     REQUIREMENTS:
+
+     1. Application MUST be Approved.
+     2. Admission MUST exist.
+     3. Admission MUST be Active.
+     4. API returns saved PDF if already generated.
+     5. API generates/saves it only the first time.
+     6. Admission number is NEVER generated here.
+  ======================================================= */
+
+  async function downloadAdmissionLetter() {
+    if (!application) return;
+
+    if (
+      !isApproved(
+        application.application_status
+      )
+    ) {
+      setError(
+        'The admission letter can only be downloaded after the application has been approved.'
+      );
+
+      return;
+    }
+
+    if (!admission) {
+      setError(
+        'An admission must be created before the admission letter can be downloaded.'
+      );
+
+      return;
+    }
+
+    if (
+      !isActive(
+        admission.admission_status
+      )
+    ) {
+      setError(
+        'The admission must be active before the admission letter can be downloaded.'
+      );
+
+      return;
+    }
+
+    try {
+      setLetterLoading(true);
+      setError('');
+      setSuccess('');
+
+      const response = await fetch(
+        `/api/admin/admissions/${admission.id}/letter`,
+        {
+          method: 'GET',
+          cache: 'no-store',
+        }
+      );
+
+      if (!response.ok) {
+        let message =
+          'Unable to download admission letter.';
+
+        try {
+          const data =
+            await response.json();
+
+          if (data?.message) {
+            message = data.message;
+          }
+        } catch {
+          // Server returned a non-JSON error.
+        }
+
+        throw new Error(message);
+      }
+
+      const blob =
+        await response.blob();
+
+      if (
+        !blob ||
+        blob.size === 0
+      ) {
+        throw new Error(
+          'The admission letter returned by the server is empty.'
+        );
+      }
+
+      const contentDisposition =
+        response.headers.get(
+          'Content-Disposition'
+        );
+
+      let filename =
+        `SMTC-Admission-Letter-${admission.admission_number}.pdf`;
+
+      if (contentDisposition) {
+        const filenameMatch =
+          contentDisposition.match(
+            /filename="([^"]+)"/i
+          );
+
+        if (filenameMatch?.[1]) {
+          filename =
+            filenameMatch[1];
+        }
+      }
+
+      const blobUrl =
+        window.URL.createObjectURL(
+          blob
+        );
+
+      const link =
+        document.createElement('a');
+
+      link.href = blobUrl;
+      link.download = filename;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      window.URL.revokeObjectURL(
+        blobUrl
+      );
+
+      /*
+       * Refresh admission so admission_letter_path is
+       * reflected immediately after first generation.
+       */
+      await loadAdmission();
+
+      setSuccess(
+        admission.admission_letter_path
+          ? 'Admission letter downloaded successfully.'
+          : 'Admission letter generated, saved and downloaded successfully.'
+      );
+    } catch (err) {
+      console.error(
+        'ADMISSION LETTER ERROR:',
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to download admission letter.'
+      );
+    } finally {
+      setLetterLoading(false);
     }
   }
 
@@ -537,17 +725,13 @@ export default function ApplicationDetailsPage() {
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
-
         <div className="text-center">
-
           <Loader2 className="mx-auto h-9 w-9 animate-spin text-brand-green" />
 
           <p className="mt-3 text-sm font-medium text-slate-500">
             Loading application...
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -559,7 +743,6 @@ export default function ApplicationDetailsPage() {
   if (!application) {
     return (
       <div className="px-4 py-10 sm:px-6 lg:px-8">
-
         <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
 
           <XCircle className="mx-auto h-10 w-10 text-red-500" />
@@ -582,10 +765,53 @@ export default function ApplicationDetailsPage() {
           </Link>
 
         </div>
-
       </div>
     );
   }
+
+  /* =======================================================
+     DERIVED STATES
+  ======================================================= */
+
+  const applicationApproved =
+    isApproved(
+      application.application_status
+    );
+
+  const paymentPaid =
+    isPaid(
+      application.payment_status
+    );
+
+  const admissionActive =
+    isActive(
+      admission?.admission_status
+    );
+
+  const admissionLetterSaved =
+    Boolean(
+      admission?.admission_letter_path
+    );
+
+  /*
+   * MOST IMPORTANT RULE:
+   *
+   * The admission letter is available ONLY when:
+   *
+   * Application = Approved
+   * AND
+   * Admission = Active
+   *
+   * Payment is required to CREATE the admission,
+   * but the application approval is the direct
+   * requirement for the letter download button.
+   */
+  const canDownloadAdmissionLetter =
+    Boolean(
+      applicationApproved &&
+      admission &&
+      admissionActive
+    );
 
   /* =======================================================
      RENDER
@@ -693,6 +919,10 @@ export default function ApplicationDetailsPage() {
 
               <div>
 
+                {/* =========================================
+                    ADMISSION SUMMARY
+                ========================================== */}
+
                 <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
 
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -700,30 +930,45 @@ export default function ApplicationDetailsPage() {
                     <div>
 
                       <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-                        Admission Number
+                        Official Admission Number
                       </p>
 
                       <p className="mt-1 text-2xl font-bold text-brand-dark">
                         {admission.admission_number}
                       </p>
 
+                      <p className="mt-1 text-xs text-slate-500">
+                        This admission number is stored
+                        permanently against this admission
+                        and must not change when the
+                        admission letter is downloaded.
+                      </p>
+
                     </div>
 
                     <div>
 
-                      <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-green-700">
-
-                        <CheckCircle2 className="h-4 w-4" />
-
-                        {admission.admission_status}
-
-                      </span>
+                      {admissionActive ? (
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-green-700">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600">
+                          <XCircle className="h-4 w-4" />
+                          {admission.admission_status}
+                        </span>
+                      )}
 
                     </div>
 
                   </div>
 
                 </div>
+
+                {/* =========================================
+                    ADMISSION DETAILS
+                ========================================== */}
 
                 <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -757,35 +1002,163 @@ export default function ApplicationDetailsPage() {
 
                 </div>
 
-               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-  {/* Generate Admission Letter */}
-  <a
-    href={`/api/admin/admissions/${admission.id}/letter`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark"
-  >
-    <FileText className="h-4 w-4" />
-    Generate Admission Letter
-  </a>
+                {/* =========================================
+                    ADMISSION LETTER
+                ========================================== */}
 
-  {/* Download Application Form */}
-  <a
-    href={`/api/admin/applications/${application.id}/pdf`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-green bg-white px-5 py-3 text-sm font-bold text-brand-green transition hover:bg-brand-green/5"
-  >
-    <Download className="h-4 w-4" />
-    Download Application Form
-  </a>
-</div>
+                <div className="mt-6 rounded-2xl border border-brand-green/20 bg-brand-green/5 p-5">
+
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+                    <div className="flex items-start gap-3">
+
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-green/10">
+
+                        <FileText className="h-5 w-5 text-brand-green" />
+
+                      </div>
+
+                      <div>
+
+                        <h3 className="font-bold text-brand-dark">
+                          Official Admission Letter
+                        </h3>
+
+                        {applicationApproved &&
+                        admissionActive ? (
+                          admissionLetterSaved ? (
+                            <p className="mt-1 text-sm text-green-700">
+                              Saved admission letter
+                              available. Downloading
+                              it returns the stored
+                              document without
+                              regenerating it.
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-sm text-slate-500">
+                              This application is approved.
+                              Generate the admission
+                              letter once and it will be
+                              permanently saved with the
+                              admission record.
+                            </p>
+                          )
+                        ) : (
+                          <p className="mt-1 text-sm font-medium text-slate-500">
+                            The admission letter can only
+                            be downloaded after the
+                            application has been approved
+                            and the admission is active.
+                          </p>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={
+                        downloadAdmissionLetter
+                      }
+                      disabled={
+                        letterLoading ||
+                        !canDownloadAdmissionLetter
+                      }
+                      title={
+                        !applicationApproved
+                          ? 'Approve the application first'
+                          : !admissionActive
+                          ? 'Admission must be active'
+                          : admissionLetterSaved
+                          ? 'Download saved admission letter'
+                          : 'Generate and download admission letter'
+                      }
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                    >
+
+                      {letterLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+
+                      {letterLoading
+                        ? 'Preparing Letter...'
+                        : admissionLetterSaved
+                        ? 'Download Admission Letter'
+                        : 'Generate & Download Letter'}
+
+                    </button>
+
+                  </div>
+
+                  {/* =======================================
+                      LETTER AVAILABILITY MESSAGE
+                  ======================================== */}
+
+                  {!applicationApproved && (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+
+                      <p className="text-xs font-semibold text-amber-800">
+                        Admission letter unavailable
+                      </p>
+
+                      <p className="mt-1 text-xs text-amber-700">
+                        The application must be approved
+                        before the admission letter can be
+                        downloaded.
+                      </p>
+
+                    </div>
+                  )}
+
+                  {applicationApproved &&
+                    !admissionActive && (
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+
+                      <p className="text-xs font-semibold text-red-800">
+                        Admission letter unavailable
+                      </p>
+
+                      <p className="mt-1 text-xs text-red-700">
+                        The admission must be active before
+                        the admission letter can be
+                        downloaded.
+                      </p>
+
+                    </div>
+                  )}
+
                 </div>
 
+                {/* =========================================
+                    APPLICATION FORM
+                ========================================== */}
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+
+                  <a
+                    href={`/api/admin/applications/${application.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-green bg-white px-5 py-3 text-sm font-bold text-brand-green transition hover:bg-brand-green/5"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Application Form
+                  </a>
+
+                </div>
+
+              </div>
 
             ) : (
 
               <div>
+
+                {/* =========================================
+                    NO ADMISSION
+                ========================================== */}
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
@@ -801,17 +1174,21 @@ export default function ApplicationDetailsPage() {
 
                 </div>
 
+                {/* =========================================
+                    CREATE ADMISSION
+                ========================================== */}
+
                 <div className="mt-5">
 
                   <button
                     type="button"
-                    onClick={createAdmission}
+                    onClick={
+                      createAdmission
+                    }
                     disabled={
                       admissionLoading ||
-                      application.application_status !==
-                        'Approved' ||
-                      application.payment_status !==
-                        'paid'
+                      !applicationApproved ||
+                      !paymentPaid
                     }
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -822,23 +1199,22 @@ export default function ApplicationDetailsPage() {
                       <CheckCircle2 className="h-4 w-4" />
                     )}
 
-                    Create Admission
+                    {admissionLoading
+                      ? 'Creating Admission...'
+                      : 'Create Admission'}
 
                   </button>
 
                 </div>
 
-                {application.application_status !==
-                  'Approved' && (
+                {!applicationApproved && (
                   <p className="mt-3 text-xs text-slate-400">
                     Approve the application first.
                   </p>
                 )}
 
-                {application.application_status ===
-                  'Approved' &&
-                  application.payment_status !==
-                    'paid' && (
+                {applicationApproved &&
+                  !paymentPaid && (
                     <p className="mt-3 text-xs text-red-500">
                       Application fee payment must be
                       confirmed first.
@@ -877,17 +1253,23 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="Gender"
-                value={application.gender}
+                value={
+                  application.gender
+                }
               />
 
               <InfoRow
                 label="Nationality"
-                value={application.nationality}
+                value={
+                  application.nationality
+                }
               />
 
               <InfoRow
                 label="Country"
-                value={application.country}
+                value={
+                  application.country
+                }
               />
 
               <InfoRow
@@ -926,7 +1308,9 @@ export default function ApplicationDetailsPage() {
 
                 <InfoRow
                   label="Mobile"
-                  value={application.mobile}
+                  value={
+                    application.mobile
+                  }
                 />
 
               </div>
@@ -937,7 +1321,9 @@ export default function ApplicationDetailsPage() {
 
                 <InfoRow
                   label="Email"
-                  value={application.email}
+                  value={
+                    application.email
+                  }
                 />
 
               </div>
@@ -948,24 +1334,32 @@ export default function ApplicationDetailsPage() {
 
                 <InfoRow
                   label="County"
-                  value={application.county}
+                  value={
+                    application.county
+                  }
                 />
 
               </div>
 
               <InfoRow
                 label="Town"
-                value={application.town}
+                value={
+                  application.town
+                }
               />
 
               <InfoRow
                 label="Postal Address"
-                value={application.postal_address}
+                value={
+                  application.postal_address
+                }
               />
 
               <InfoRow
                 label="Postal Code"
-                value={application.postal_code}
+                value={
+                  application.postal_code
+                }
               />
 
             </div>
@@ -986,12 +1380,16 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="KCSE Index"
-                value={application.kcse_index}
+                value={
+                  application.kcse_index
+                }
               />
 
               <InfoRow
                 label="KCSE Year"
-                value={application.kcse_year}
+                value={
+                  application.kcse_year
+                }
               />
 
               <InfoRow
@@ -1003,7 +1401,9 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="English"
-                value={application.english_grade}
+                value={
+                  application.english_grade
+                }
               />
 
               <InfoRow
@@ -1015,7 +1415,9 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="Biology"
-                value={application.biology_grade}
+                value={
+                  application.biology_grade
+                }
               />
 
               <InfoRow
@@ -1027,7 +1429,9 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="Physics"
-                value={application.physics_grade}
+                value={
+                  application.physics_grade
+                }
               />
 
               <InfoRow
@@ -1069,12 +1473,16 @@ export default function ApplicationDetailsPage() {
 
               <InfoRow
                 label="Selected Course"
-                value={application.course}
+                value={
+                  application.course
+                }
               />
 
               <InfoRow
                 label="Intake"
-                value={application.intake}
+                value={
+                  application.intake
+                }
               />
 
             </div>
@@ -1190,7 +1598,9 @@ export default function ApplicationDetailsPage() {
 
               <DocumentCard
                 title="ID / Passport"
-                path={application.id_document}
+                path={
+                  application.id_document
+                }
               />
 
               <DocumentCard
@@ -1244,7 +1654,6 @@ export default function ApplicationDetailsPage() {
                     ? 'Yes'
                     : 'No'
                 }
-
               />
 
             </div>
@@ -1327,7 +1736,6 @@ export default function ApplicationDetailsPage() {
         </div>
 
       </div>
-
     </div>
   );
 }

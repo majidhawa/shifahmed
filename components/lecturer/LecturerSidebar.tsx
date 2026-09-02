@@ -9,19 +9,16 @@ import {
   BookOpen,
   Layers3,
   ClipboardList,
-  FileText,
   ClipboardCheck,
   BarChart3,
   Users,
   CalendarCheck,
   Megaphone,
-  Bell,
   UserCircle,
   LogOut,
   X,
   GraduationCap,
   Loader2,
-  Video,
   Notebook,
 } from 'lucide-react';
 
@@ -35,16 +32,21 @@ import {
    /lecturer/dashboard/courses
    /lecturer/dashboard/units
    /lecturer/dashboard/lessons
-   /lecturer/dashboard/materials
-    /lecturer/dashboard/videos
    /lecturer/dashboard/assignments
    /lecturer/dashboard/quizzes
    /lecturer/dashboard/grades
    /lecturer/dashboard/students
    /lecturer/dashboard/attendance
+   /lecturer/dashboard/timetable
    /lecturer/dashboard/announcements
-   /lecturer/dashboard/notifications
    /lecturer/dashboard/profile
+
+   SECURITY
+   - Logout destroys the lecturer session.
+   - Logout uses window.location.replace().
+   - Browser back/forward cache is checked.
+   - If the lecturer session no longer exists,
+     the user is forced to /lecturer/login.
 ========================================================= */
 
 /* =========================================================
@@ -67,7 +69,6 @@ type NavigationSection = {
 ========================================================= */
 
 const navigationSections: NavigationSection[] = [
-
   /* =======================================================
      MAIN
   ======================================================== */
@@ -109,7 +110,6 @@ const navigationSections: NavigationSection[] = [
         href: '/lecturer/dashboard/lessons',
         icon: ClipboardList,
       },
-      
     ],
   },
 
@@ -176,20 +176,14 @@ const navigationSections: NavigationSection[] = [
         href: '/lecturer/dashboard/timetable',
         icon: Notebook,
       },
+
       {
         label: 'Announcements',
         href: '/lecturer/dashboard/announcements',
         icon: Megaphone,
       },
-
-      {
-        label: 'Notifications',
-        href: '/lecturer/dashboard/notifications',
-        icon: Bell,
-      },
     ],
   },
-  
 
   /* =======================================================
      ACCOUNT
@@ -213,7 +207,6 @@ const navigationSections: NavigationSection[] = [
 ========================================================= */
 
 export default function LecturerSidebar() {
-
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] =
@@ -223,17 +216,127 @@ export default function LecturerSidebar() {
     useState(false);
 
   /* =======================================================
+     AUTHENTICATION / BROWSER RESTORE PROTECTION
+  ======================================================== */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const verifyLecturerSession = async () => {
+      /*
+       * Do not perform another request while the component
+       * is being unmounted.
+       */
+      if (!mounted) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          '/api/lecturer/me',
+          {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store',
+
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+          }
+        );
+
+        /*
+         * Session no longer exists.
+         */
+        if (!response.ok) {
+          if (mounted) {
+            window.location.replace(
+              '/lecturer/login'
+            );
+          }
+
+          return;
+        }
+
+        const data =
+          await response.json();
+
+        /*
+         * API responded but lecturer data
+         * is missing.
+         */
+        if (
+          !data?.success ||
+          !data?.lecturer
+        ) {
+          if (mounted) {
+            window.location.replace(
+              '/lecturer/login'
+            );
+          }
+        }
+      } catch (error) {
+        console.error(
+          'Lecturer session verification error:',
+          error
+        );
+
+        /*
+         * If the session cannot be verified,
+         * do not leave an unauthenticated user
+         * inside the lecturer portal.
+         */
+        if (mounted) {
+          window.location.replace(
+            '/lecturer/login'
+          );
+        }
+      }
+    };
+
+    /*
+     * Check when the sidebar initially mounts.
+     */
+    verifyLecturerSession();
+
+    /*
+     * IMPORTANT:
+     *
+     * pageshow fires when the browser restores a page
+     * from its back/forward cache.
+     *
+     * This is the situation causing your problem where
+     * pressing Back twice can restore the dashboard.
+     */
+    const handlePageShow = () => {
+      verifyLecturerSession();
+    };
+
+    window.addEventListener(
+      'pageshow',
+      handlePageShow
+    );
+
+    return () => {
+      mounted = false;
+
+      window.removeEventListener(
+        'pageshow',
+        handlePageShow
+      );
+    };
+  }, []);
+
+  /* =======================================================
      LISTEN FOR HEADER MOBILE MENU BUTTON
   ======================================================== */
 
   useEffect(() => {
-
     const handleToggle = () => {
-
       setMobileOpen(
         (current) => !current
       );
-
     };
 
     window.addEventListener(
@@ -242,14 +345,11 @@ export default function LecturerSidebar() {
     );
 
     return () => {
-
       window.removeEventListener(
         'lecturer-toggle-sidebar',
         handleToggle
       );
-
     };
-
   }, []);
 
   /* =======================================================
@@ -257,9 +357,7 @@ export default function LecturerSidebar() {
   ======================================================== */
 
   useEffect(() => {
-
     setMobileOpen(false);
-
   }, [pathname]);
 
   /* =======================================================
@@ -267,23 +365,17 @@ export default function LecturerSidebar() {
   ======================================================== */
 
   useEffect(() => {
-
     if (!mobileOpen) {
-
       document.body.style.overflow = '';
 
       return;
-
     }
 
     document.body.style.overflow = 'hidden';
 
     return () => {
-
       document.body.style.overflow = '';
-
     };
-
   }, [mobileOpen]);
 
   /* =======================================================
@@ -293,40 +385,25 @@ export default function LecturerSidebar() {
   const isActive = (
     href: string
   ) => {
-
     /*
      * Dashboard is active only on the
      * exact dashboard URL.
      */
-
     if (
       href === '/lecturer/dashboard'
     ) {
-
       return pathname === href;
-
     }
 
     /*
-     * All other sections support nested
-     * routes.
-     *
-     * Example:
-     *
-     * /lecturer/dashboard/courses
-     * /lecturer/dashboard/courses/1
-     * /lecturer/dashboard/courses/1/edit
-     *
-     * All remain under My Courses.
+     * Other sections support nested routes.
      */
-
     return (
       pathname === href ||
       pathname.startsWith(
         `${href}/`
       )
     );
-
   };
 
   /* =======================================================
@@ -334,9 +411,7 @@ export default function LecturerSidebar() {
   ======================================================== */
 
   const closeMobileSidebar = () => {
-
     setMobileOpen(false);
-
   };
 
   /* =======================================================
@@ -344,21 +419,21 @@ export default function LecturerSidebar() {
   ======================================================== */
 
   const handleLogout = async () => {
-
     /*
      * Prevent duplicate logout requests.
      */
-
     if (loggingOut) {
-
       return;
-
     }
 
     setLoggingOut(true);
 
-    try {
+    /*
+     * Close mobile navigation immediately.
+     */
+    setMobileOpen(false);
 
+    try {
       const response =
         await fetch(
           '/api/lecturer/logout',
@@ -370,42 +445,36 @@ export default function LecturerSidebar() {
             headers: {
               'Cache-Control':
                 'no-cache',
+              Pragma: 'no-cache',
             },
           }
         );
 
       if (!response.ok) {
-
         console.error(
           'Lecturer logout failed:',
           response.status
         );
-
       }
-
     } catch (error) {
-
       console.error(
         'Lecturer logout error:',
         error
       );
-
     } finally {
-
-      setMobileOpen(false);
-
       /*
-       * Replace the current browser history
-       * entry so the lecturer cannot simply
-       * navigate back to the previous page.
+       * IMPORTANT:
+       *
+       * replace() navigates to login without creating
+       * another login history entry.
+       *
+       * The lecturer session has already been destroyed
+       * by /api/lecturer/logout.
        */
-
       window.location.replace(
         '/lecturer/login'
       );
-
     }
-
   };
 
   /* =========================================================
@@ -413,7 +482,6 @@ export default function LecturerSidebar() {
   ========================================================= */
 
   const sidebarContent = (
-
     <div className="flex h-full flex-col">
 
       {/* ===================================================
@@ -499,7 +567,6 @@ export default function LecturerSidebar() {
                       );
 
                     return (
-
                       <Link
                         key={item.href}
                         href={item.href}
@@ -537,15 +604,11 @@ export default function LecturerSidebar() {
                         {/* ACTIVE INDICATOR */}
 
                         {active && (
-
                           <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-brand-gold" />
-
                         )}
 
                       </Link>
-
                     );
-
                   }
                 )}
 
@@ -594,13 +657,9 @@ export default function LecturerSidebar() {
         >
 
           {loggingOut ? (
-
             <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-
           ) : (
-
             <LogOut className="h-5 w-5 shrink-0" />
-
           )}
 
           <span>
@@ -614,7 +673,6 @@ export default function LecturerSidebar() {
       </div>
 
     </div>
-
   );
 
   /* =========================================================
@@ -622,9 +680,7 @@ export default function LecturerSidebar() {
   ========================================================= */
 
   return (
-
     <>
-
       {/* =====================================================
           DESKTOP SIDEBAR
       ====================================================== */}
@@ -633,9 +689,7 @@ export default function LecturerSidebar() {
         className="fixed bottom-0 left-0 top-16 z-40 hidden w-72 bg-brand-dark lg:block"
         aria-label="Lecturer desktop navigation"
       >
-
         {sidebarContent}
-
       </aside>
 
       {/* =====================================================
@@ -643,7 +697,6 @@ export default function LecturerSidebar() {
       ====================================================== */}
 
       {mobileOpen && (
-
         <button
           type="button"
           aria-label="Close lecturer navigation"
@@ -652,7 +705,6 @@ export default function LecturerSidebar() {
             closeMobileSidebar
           }
         />
-
       )}
 
       {/* =====================================================
@@ -695,9 +747,6 @@ export default function LecturerSidebar() {
         {sidebarContent}
 
       </aside>
-
     </>
-
   );
-
 }
