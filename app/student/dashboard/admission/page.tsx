@@ -1,5 +1,3 @@
-// app/student/dashboard/admission/page.tsx
-
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
@@ -405,7 +403,6 @@ export default async function StudentAdmissionPage() {
             >
               Your Admission
             </h2>
-
             <p
               className="
                 mt-2
