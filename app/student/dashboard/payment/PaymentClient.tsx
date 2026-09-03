@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -109,7 +108,6 @@ export default function PaymentClient({
           body: JSON.stringify({
             applicationNumber:
               payment.applicationNumber,
-
             phoneNumber:
               normalizedPhone,
           }),
@@ -131,7 +129,6 @@ export default function PaymentClient({
           data.message ||
           'M-Pesa payment prompt sent. Check your phone and enter your M-Pesa PIN.',
       });
-
     } catch (error) {
       console.error(
         'STK payment error:',
@@ -204,7 +201,6 @@ export default function PaymentClient({
       link.remove();
 
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error(
         'Receipt download error:',
@@ -230,17 +226,13 @@ export default function PaymentClient({
   if (payment.isPaid) {
     return (
       <section className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm sm:p-7">
-
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-
           <div className="flex items-start gap-4">
-
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <CheckCircle2 size={24} />
             </div>
 
             <div>
-
               <h3 className="font-bold text-[#0c1f1a]">
                 Payment Verified
               </h3>
@@ -267,9 +259,7 @@ export default function PaymentClient({
                   {payment.mpesaTransactionDate}
                 </p>
               )}
-
             </div>
-
           </div>
 
           <button
@@ -291,7 +281,6 @@ export default function PaymentClient({
               ? 'Preparing...'
               : 'Download Receipt'}
           </button>
-
         </div>
 
         {message && (
@@ -300,7 +289,6 @@ export default function PaymentClient({
             text={message.text}
           />
         )}
-
       </section>
     );
   }
@@ -311,19 +299,15 @@ export default function PaymentClient({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-
       {/* HEADER */}
 
       <div className="border-b border-gray-100 bg-[#fafcfb] p-6 sm:p-7">
-
         <div className="flex items-start gap-4">
-
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
             <CreditCard size={23} />
           </div>
 
           <div>
-
             <h3 className="font-bold text-[#0c1f1a]">
               Pay Application Fee
             </h3>
@@ -332,23 +316,17 @@ export default function PaymentClient({
               Initiate an M-Pesa payment request for
               your application fee.
             </p>
-
           </div>
-
         </div>
-
       </div>
 
       {/* BODY */}
 
       <div className="p-6 sm:p-7">
-
         <div className="grid gap-6 lg:grid-cols-2">
-
           {/* AMOUNT */}
 
           <div className="rounded-xl border border-[#d7a93b]/20 bg-[#fffdf5] p-5">
-
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
               Amount Payable
             </p>
@@ -363,13 +341,11 @@ export default function PaymentClient({
             <p className="mt-2 text-sm text-gray-500">
               Application fee
             </p>
-
           </div>
 
           {/* PHONE */}
 
           <div>
-
             <label
               htmlFor="payment-phone"
               className="block text-sm font-semibold text-[#0c1f1a]"
@@ -378,7 +354,6 @@ export default function PaymentClient({
             </label>
 
             <div className="relative mt-2">
-
               <Smartphone
                 size={18}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -395,16 +370,13 @@ export default function PaymentClient({
                 disabled={loading}
                 className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-800 outline-none transition focus:border-[#0f4f3f] focus:ring-2 focus:ring-[#0f4f3f]/10 disabled:bg-gray-50"
               />
-
             </div>
 
             <p className="mt-2 text-xs text-gray-400">
               Enter the M-Pesa number that should
               receive the payment prompt.
             </p>
-
           </div>
-
         </div>
 
         {/* PAY BUTTON */}
@@ -415,7 +387,6 @@ export default function PaymentClient({
           disabled={loading}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0f4f3f] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0c1f1a] disabled:cursor-not-allowed disabled:opacity-60"
         >
-
           {loading ? (
             <>
               <Loader2
@@ -436,7 +407,6 @@ export default function PaymentClient({
               via M-Pesa
             </>
           )}
-
         </button>
 
         {/* MESSAGE */}
@@ -451,7 +421,6 @@ export default function PaymentClient({
         {/* SECURITY */}
 
         <div className="mt-5 flex items-start gap-3 rounded-xl bg-[#f8faf9] p-4">
-
           <ShieldCheck
             size={18}
             className="mt-0.5 shrink-0 text-[#0f4f3f]"
@@ -462,11 +431,8 @@ export default function PaymentClient({
             official M-Pesa payment system. Never
             share your M-Pesa PIN with anyone.
           </p>
-
         </div>
-
       </div>
-
     </section>
   );
 }
@@ -510,4 +476,3 @@ function Message({
     </div>
   );
 }
-

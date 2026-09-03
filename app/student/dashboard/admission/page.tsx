@@ -1,22 +1,12 @@
-// app/student/dashboard/admissions/page.tsx
+// app/student/dashboard/admission/page.tsx
 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 
 import pool from '@/lib/db';
 import { getStudentSession } from '@/lib/student-auth';
 
 import {
-  LayoutDashboard,
-  FileText,
-  CreditCard,
-  GraduationCap,
-  FolderOpen,
-  User,
-  Phone,
-  LogOut,
-  ChevronRight,
   CheckCircle2,
   Clock3,
   AlertCircle,
@@ -27,11 +17,15 @@ import {
   ArrowLeft,
   Download,
   Award,
+  GraduationCap,
+  ChevronRight,
 } from 'lucide-react';
 
 /* =========================================================
    STUDENT ADMISSION PAGE
 ========================================================= */
+
+export const dynamic = 'force-dynamic';
 
 export default async function StudentAdmissionPage() {
   /* =======================================================
@@ -117,9 +111,6 @@ export default async function StudentAdmissionPage() {
   const firstName =
     student.first_name || 'Student';
 
-  const studentInitial =
-    fullName.charAt(0).toUpperCase() || 'S';
-
   /* =======================================================
      5. APPLICATION STATUS
   ======================================================= */
@@ -158,8 +149,9 @@ export default async function StudentAdmissionPage() {
      The record must already have been created by the
      administrator.
 
-     We also check whether the administrator has already
-     generated and stored the admission letter PDF.
+     The admission letter is only considered available
+     when the administrator has already generated and
+     stored the PDF in the database.
   ======================================================= */
 
   let admission: {
@@ -212,37 +204,56 @@ export default async function StudentAdmissionPage() {
 
       admission = {
         id: Number(row.id),
-        application_id: Number(row.application_id),
+
+        application_id:
+          Number(row.application_id),
+
         admission_number:
           row.admission_number
-            ? String(row.admission_number).trim()
+            ? String(
+                row.admission_number
+              ).trim()
             : null,
+
         application_number:
           row.application_number
-            ? String(row.application_number).trim()
+            ? String(
+                row.application_number
+              ).trim()
             : null,
+
         student_name:
           row.student_name
             ? String(row.student_name)
             : null,
+
         course:
           row.course
             ? String(row.course)
             : null,
+
         intake:
           row.intake
             ? String(row.intake)
             : null,
+
         admission_date:
           row.admission_date || null,
+
         admission_status:
           row.admission_status
-            ? String(row.admission_status)
+            ? String(
+                row.admission_status
+              )
             : null,
+
         admission_letter_path:
           row.admission_letter_path
-            ? String(row.admission_letter_path)
+            ? String(
+                row.admission_letter_path
+              )
             : null,
+
         has_letter:
           Boolean(row.has_letter),
       };
@@ -288,9 +299,6 @@ export default async function StudentAdmissionPage() {
 
   /* =======================================================
      10. DOWNLOAD URL
-
-     Only create a usable download URL when the official
-     admin-generated PDF is available.
   ======================================================= */
 
   const admissionDownloadUrl =
@@ -343,1143 +351,972 @@ export default async function StudentAdmissionPage() {
   return (
     <div className="min-h-screen bg-[#f8faf9]">
 
-      {/* =================================================
-          SIDEBAR
-      ================================================= */}
+      <main className="px-4 py-6 sm:px-6 lg:px-8">
 
-      <aside
-        className="
-          fixed inset-y-0 left-0 z-40 hidden
-          w-72 flex-col
-          bg-[#0c1f1a]
-          text-white
-          lg:flex
-        "
-      >
+        <div className="mx-auto max-w-7xl">
 
-        {/* BRAND */}
-
-        <div
-          className="
-            flex h-20 items-center
-            border-b border-white/10
-            px-5
-          "
-        >
+          {/* =================================================
+              BACK
+          ================================================= */}
 
           <Link
             href="/student/dashboard"
-            className="flex items-center gap-3"
+            className="
+              mb-6
+              inline-flex
+              items-center
+              gap-2
+              text-sm
+              font-semibold
+              text-gray-500
+              transition
+              hover:text-[#0f4f3f]
+            "
           >
+            <ArrowLeft size={17} />
 
-            <div
-              className="
-                flex h-12 w-12 shrink-0
-                items-center justify-center
-                overflow-hidden
-                rounded-xl
-                bg-white
-                p-1
-                shadow-lg
-                ring-1 ring-white/10
-              "
-            >
-
-              <Image
-                src="/images/logo.jpg"
-                alt="Shifah Medical Training College Logo"
-                width={48}
-                height={48}
-                className="h-full w-full object-contain"
-                priority
-              />
-
-            </div>
-
-            <div>
-
-              <p className="text-sm font-bold tracking-wide">
-                SHIFAH MTC
-              </p>
-
-              <p className="text-xs text-white/50">
-                Student Portal
-              </p>
-
-            </div>
-
+            Back to Dashboard
           </Link>
 
-        </div>
+          {/* =================================================
+              INTRO
+          ================================================= */}
 
-        {/* PROFILE */}
+          <div className="mb-7">
 
-        <div className="border-b border-white/10 p-5">
-
-          <div className="flex items-center gap-3">
-
-            <div
+            <p
               className="
-                flex h-11 w-11 shrink-0
-                items-center justify-center
-                rounded-full
-                bg-[#0f4f3f]
-                text-sm font-bold
-                ring-2 ring-[#d7a93b]/60
+                text-sm
+                font-semibold
+                text-[#0f4f3f]
               "
             >
-              {studentInitial}
-            </div>
+              Admission Centre
+            </p>
 
-            <div className="min-w-0">
+            <h2
+              className="
+                mt-1
+                text-2xl
+                font-bold
+                text-[#0c1f1a]
+                sm:text-3xl
+              "
+            >
+              Your Admission
+            </h2>
 
-              <p className="truncate text-sm font-semibold">
-                {fullName || 'Student'}
-              </p>
-
-              <p className="truncate text-xs text-white/50">
-                Applicant
-              </p>
-
-            </div>
+            <p
+              className="
+                mt-2
+                max-w-2xl
+                text-sm
+                leading-6
+                text-gray-500
+              "
+            >
+              View your admission status, programme
+              details, intake information and
+              admission letter.
+            </p>
 
           </div>
 
-        </div>
+          {/* =================================================
+              STATUS
+          ================================================= */}
 
-        {/* NAVIGATION */}
-
-        <nav className="flex-1 px-4 py-6">
-
-          <p
+          <section
             className="
-              mb-3 px-3
-              text-[10px]
-              font-bold
-              uppercase
-              tracking-[0.2em]
-              text-white/30
-            "
-          >
-            Main Menu
-          </p>
-
-          <div className="space-y-1">
-
-            <SidebarItem
-              href="/student/dashboard"
-              icon={<LayoutDashboard size={19} />}
-              label="Dashboard"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/application"
-              icon={<FileText size={19} />}
-              label="My Application"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/payment"
-              icon={<CreditCard size={19} />}
-              label="Payment & Receipt"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/admission"
-              icon={<GraduationCap size={19} />}
-              label="Admission"
-              active
-            />
-
-            <SidebarItem
-              href="/student/dashboard/documents"
-              icon={<FolderOpen size={19} />}
-              label="My Documents"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/profile"
-              icon={<User size={19} />}
-              label="My Profile"
-            />
-
-          </div>
-
-          <p
-            className="
-              mb-3 mt-8 px-3
-              text-[10px]
-              font-bold
-              uppercase
-              tracking-[0.2em]
-              text-white/30
-            "
-          >
-            Support
-          </p>
-
-          <SidebarItem
-            href="/student/dashboard/contact"
-            icon={<Phone size={19} />}
-            label="Contact Admissions"
-          />
-
-        </nav>
-
-        {/* LOGOUT */}
-
-        <div className="border-t border-white/10 p-4">
-
-          <form
-            action="/api/student/logout"
-            method="POST"
-          >
-
-            <button
-              type="submit"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl px-4 py-3
-                text-sm font-medium
-                text-white/60
-                transition
-                hover:bg-red-500/10
-                hover:text-red-300
-              "
-            >
-
-              <LogOut size={19} />
-
-              Logout
-
-            </button>
-
-          </form>
-
-        </div>
-
-      </aside>
-
-      {/* =================================================
-          MAIN
-      ================================================= */}
-
-      <div className="lg:pl-72">
-
-        {/* HEADER */}
-
-        <header
-          className="
-            sticky top-0 z-30
-            border-b border-gray-200
-            bg-white/95
-            backdrop-blur
-          "
-        >
-
-          <div
-            className="
-              flex h-20
-              items-center
-              justify-between
-              px-4 sm:px-6 lg:px-8
+              mb-6
+              overflow-hidden
+              rounded-2xl
+              border
+              border-gray-100
+              bg-white
+              shadow-sm
             "
           >
 
-            <div>
-
-              <p
-                className="
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-[0.15em]
-                  text-[#0f4f3f]
-                "
-              >
-                Student Portal
-              </p>
-
-              <h1
-                className="
-                  mt-1
-                  text-xl
-                  font-bold
-                  text-[#0c1f1a]
-                "
-              >
-                Admission
-              </h1>
-
-            </div>
-
-            <div className="flex items-center gap-3">
-
-              <div className="hidden text-right sm:block">
-
-                <p
-                  className="
-                    text-sm
-                    font-semibold
-                    text-[#0c1f1a]
-                  "
-                >
-                  {firstName}
-                </p>
-
-                <p className="text-xs text-gray-500">
-                  {applicationNumber || '—'}
-                </p>
-
-              </div>
+            <div className="p-6 sm:p-8">
 
               <div
                 className="
-                  flex h-10 w-10
-                  items-center justify-center
-                  rounded-full
-                  bg-[#0f4f3f]
-                  text-sm font-bold
-                  text-white
+                  flex
+                  flex-col
+                  gap-6
+                  md:flex-row
+                  md:items-center
+                  md:justify-between
                 "
               >
-                {studentInitial}
-              </div>
 
-            </div>
+                {/* STATUS INFORMATION */}
 
-          </div>
+                <div className="flex items-start gap-4">
 
-        </header>
+                  <div
+                    className={`
+                      flex
+                      h-14
+                      w-14
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      ${
+                        isApproved
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : isRejected
+                          ? 'bg-red-50 text-red-600'
+                          : 'bg-amber-50 text-amber-600'
+                      }
+                    `}
+                  >
 
-        {/* CONTENT */}
+                    {isApproved ? (
+                      <CheckCircle2 size={27} />
+                    ) : isRejected ? (
+                      <AlertCircle size={27} />
+                    ) : (
+                      <Clock3 size={27} />
+                    )}
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
+                  </div>
 
-          <div className="mx-auto max-w-7xl">
+                  <div>
 
-            {/* BACK */}
-
-            <Link
-              href="/student/dashboard"
-              className="
-                mb-6 inline-flex
-                items-center gap-2
-                text-sm font-semibold
-                text-gray-500
-                transition
-                hover:text-[#0f4f3f]
-              "
-            >
-
-              <ArrowLeft size={17} />
-
-              Back to Dashboard
-
-            </Link>
-
-            {/* INTRO */}
-
-            <div className="mb-7">
-
-              <p
-                className="
-                  text-sm
-                  font-semibold
-                  text-[#0f4f3f]
-                "
-              >
-                Admission Centre
-              </p>
-
-              <h2
-                className="
-                  mt-1
-                  text-2xl
-                  font-bold
-                  text-[#0c1f1a]
-                  sm:text-3xl
-                "
-              >
-                Your Admission
-              </h2>
-
-              <p
-                className="
-                  mt-2
-                  max-w-2xl
-                  text-sm
-                  leading-6
-                  text-gray-500
-                "
-              >
-                View your admission status, programme details,
-                intake information and admission letter.
-              </p>
-
-            </div>
-
-            {/* =================================================
-                STATUS
-            ================================================= */}
-
-            <section
-              className="
-                mb-6
-                overflow-hidden
-                rounded-2xl
-                border border-gray-100
-                bg-white
-                shadow-sm
-              "
-            >
-
-              <div className="p-6 sm:p-8">
-
-                <div
-                  className="
-                    flex flex-col gap-6
-                    md:flex-row
-                    md:items-center
-                    md:justify-between
-                  "
-                >
-
-                  {/* STATUS INFORMATION */}
-
-                  <div className="flex items-start gap-4">
+                    <p
+                      className="
+                        text-xs
+                        font-semibold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                      "
+                    >
+                      Admission Status
+                    </p>
 
                     <div
-                      className={`
-                        flex h-14 w-14
-                        shrink-0
-                        items-center justify-center
-                        rounded-2xl
-                        ${
-                          isApproved
-                            ? 'bg-emerald-50 text-emerald-600'
-                            : isRejected
-                            ? 'bg-red-50 text-red-600'
-                            : 'bg-amber-50 text-amber-600'
-                        }
-                      `}
+                      className="
+                        mt-2
+                        flex
+                        flex-wrap
+                        items-center
+                        gap-3
+                      "
                     >
 
-                      {isApproved ? (
-                        <CheckCircle2 size={27} />
-                      ) : isRejected ? (
-                        <AlertCircle size={27} />
-                      ) : (
-                        <Clock3 size={27} />
-                      )}
+                      <span
+                        className={`
+                          inline-flex
+                          items-center
+                          gap-2
+                          rounded-full
+                          border
+                          px-3
+                          py-1.5
+                          text-xs
+                          font-bold
+                          ${statusClass}
+                        `}
+                      >
 
+                        <span
+                          className="
+                            h-1.5
+                            w-1.5
+                            rounded-full
+                            bg-current
+                          "
+                        />
+
+                        {applicationStatus}
+
+                      </span>
+
+                    </div>
+
+                    <p className="mt-2 text-sm text-gray-500">
+
+                      {isApproved
+                        ? 'Congratulations! Your application has been approved.'
+                        : isRejected
+                        ? 'Your application was not approved. Please contact Admissions for clarification.'
+                        : 'Your application is still being reviewed by the Admissions Office.'}
+
+                    </p>
+
+                  </div>
+
+                </div>
+
+                {/* LETTER PENDING */}
+
+                {isApproved &&
+                !admissionLetterAvailable ? (
+
+                  <div
+                    className="
+                      flex
+                      max-w-sm
+                      items-center
+                      gap-3
+                      rounded-xl
+                      border
+                      border-amber-200
+                      bg-amber-50
+                      px-4
+                      py-3
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        h-9
+                        w-9
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-lg
+                        bg-white
+                        text-amber-600
+                        shadow-sm
+                      "
+                    >
+                      <Clock3 size={18} />
                     </div>
 
                     <div>
 
                       <p
                         className="
-                          text-xs
+                          text-sm
                           font-semibold
-                          uppercase
-                          tracking-wider
-                          text-gray-400
+                          text-amber-800
                         "
                       >
-                        Admission Status
+                        Admission Letter Not Yet Available
                       </p>
 
-                      <div
+                      <p
                         className="
-                          mt-2
-                          flex flex-wrap
-                          items-center gap-3
+                          mt-0.5
+                          text-xs
+                          leading-5
+                          text-amber-700
                         "
                       >
-
-                        <span
-                          className={`
-                            inline-flex
-                            items-center gap-2
-                            rounded-full
-                            border
-                            px-3 py-1.5
-                            text-xs font-bold
-                            ${statusClass}
-                          `}
-                        >
-
-                          <span
-                            className="
-                              h-1.5 w-1.5
-                              rounded-full
-                              bg-current
-                            "
-                          />
-
-                          {applicationStatus}
-
-                        </span>
-
-                      </div>
-
-                      <p className="mt-2 text-sm text-gray-500">
-
-                        {isApproved
-                          ? 'Congratulations! Your application has been approved.'
-                          : isRejected
-                          ? 'Your application was not approved. Please contact Admissions for clarification.'
-                          : 'Your application is still being reviewed by the Admissions Office.'}
-
+                        Your application is approved,
+                        but the Admissions Office has
+                        not yet generated your official
+                        admission letter.
                       </p>
 
                     </div>
 
                   </div>
 
-                  {/* =================================================
-                      NO DOWNLOAD BUTTON HERE
+                ) : null}
 
-                      The official download button exists only
-                      inside the Official Admission Letter section.
-                  ================================================= */}
+              </div>
 
-                  {isApproved &&
-                  !admissionLetterAvailable ? (
+            </div>
+
+          </section>
+
+          {/* =================================================
+              APPROVED
+          ================================================= */}
+
+          {isApproved ? (
+            <>
+
+              {/* WELCOME CARD */}
+
+              <section
+                className="
+                  mb-6
+                  overflow-hidden
+                  rounded-2xl
+                  bg-[#0c1f1a]
+                  text-white
+                  shadow-sm
+                "
+              >
+
+                <div
+                  className="
+                    relative
+                    p-7
+                    sm:p-9
+                  "
+                >
+
+                  <div
+                    className="
+                      absolute
+                      right-6
+                      top-6
+                      opacity-10
+                    "
+                  >
+                    <Award size={110} />
+                  </div>
+
+                  <div className="relative">
 
                     <div
                       className="
+                        mb-4
                         flex
-                        max-w-sm
+                        h-12
+                        w-12
                         items-center
-                        gap-3
+                        justify-center
                         rounded-xl
-                        border
-                        border-amber-200
-                        bg-amber-50
-                        px-4 py-3
+                        bg-[#d7a93b]
+                        text-[#0c1f1a]
                       "
                     >
+                      <GraduationCap size={24} />
+                    </div>
+
+                    <p
+                      className="
+                        text-sm
+                        font-semibold
+                        text-[#d7a93b]
+                      "
+                    >
+                      Congratulations, {firstName}
+                    </p>
+
+                    <h3
+                      className="
+                        mt-1
+                        text-2xl
+                        font-bold
+                        sm:text-3xl
+                      "
+                    >
+                      You have been admitted to
+                      Shifah Medical Training College.
+                    </h3>
+
+                    <p
+                      className="
+                        mt-3
+                        max-w-2xl
+                        text-sm
+                        leading-6
+                        text-white/60
+                      "
+                    >
+                      Your application has successfully
+                      passed the admissions review process.
+                      Your official admission record and
+                      admission letter will appear here
+                      once processed by the Admissions Office.
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </section>
+
+              {/* =================================================
+                  ADMISSION DETAILS
+              ================================================= */}
+
+              <AdmissionSection
+                title="Admission Details"
+                description="Your official programme, intake and admission information."
+                icon={<GraduationCap size={20} />}
+              >
+
+                <div
+                  className="
+                    grid
+                    gap-5
+                    sm:grid-cols-2
+                    lg:grid-cols-3
+                  "
+                >
+
+                  <AdmissionInfo
+                    label="Applicant Name"
+                    value={fullName}
+                  />
+
+                  <AdmissionInfo
+                    label="Application Number"
+                    value={applicationNumber}
+                  />
+
+                  <AdmissionInfo
+                    label="Admission Number"
+                    value={admissionNumber}
+                    highlight={Boolean(admissionNumber)}
+                  />
+
+                  <AdmissionInfo
+                    label="Programme"
+                    value={
+                      admission?.course ||
+                      student.course
+                    }
+                    highlight
+                  />
+
+                  <AdmissionInfo
+                    label="Intake"
+                    value={
+                      admission?.intake ||
+                      student.intake
+                    }
+                    highlight
+                  />
+
+                  <AdmissionInfo
+                    label="Admission Record"
+                    value={
+                      hasActiveAdmission
+                        ? 'ACTIVE'
+                        : 'PROCESSING'
+                    }
+                    highlight={hasActiveAdmission}
+                  />
+
+                  <AdmissionInfo
+                    label="Application Status"
+                    value="ADMITTED"
+                    highlight
+                  />
+
+                  <AdmissionInfo
+                    label="Application Fee"
+                    value={`KSh ${Number(
+                      student.application_fee || 0
+                    ).toLocaleString()}`}
+                  />
+
+                </div>
+
+              </AdmissionSection>
+
+              {/* =================================================
+                  OFFICIAL ADMISSION LETTER
+              ================================================= */}
+
+              <section
+                className="
+                  mt-6
+                  rounded-2xl
+                  border
+                  border-gray-100
+                  bg-white
+                  p-6
+                  shadow-sm
+                  sm:p-7
+                "
+              >
+
+                <div className="flex items-start gap-4">
+
+                  <div
+                    className={`
+                      flex
+                      h-11
+                      w-11
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      ${
+                        admissionLetterAvailable
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-amber-50 text-amber-600'
+                      }
+                    `}
+                  >
+
+                    {admissionLetterAvailable ? (
+                      <CheckCircle2 size={21} />
+                    ) : (
+                      <Clock3 size={21} />
+                    )}
+
+                  </div>
+
+                  <div className="flex-1">
+
+                    <h3
+                      className="
+                        font-bold
+                        text-[#0c1f1a]
+                      "
+                    >
+                      Official Admission Letter
+                    </h3>
+
+                    <p
+                      className="
+                        mt-1
+                        text-sm
+                        leading-6
+                        text-gray-500
+                      "
+                    >
+                      {admissionLetterAvailable
+                        ? 'Your official admission letter has been generated by the Admissions Office and is ready for download.'
+                        : 'Your application has been approved, but your official admission letter has not yet been generated by the Admissions Office.'}
+                    </p>
+
+                    {admissionNumber && (
+                      <div
+                        className="
+                          mt-4
+                          inline-flex
+                          items-center
+                          gap-2
+                          rounded-lg
+                          bg-[#f7fbf9]
+                          px-3
+                          py-2
+                        "
+                      >
+
+                        <span
+                          className="
+                            text-xs
+                            font-medium
+                            text-gray-500
+                          "
+                        >
+                          Admission No:
+                        </span>
+
+                        <span
+                          className="
+                            text-xs
+                            font-bold
+                            text-[#0f4f3f]
+                          "
+                        >
+                          {admissionNumber}
+                        </span>
+
+                      </div>
+                    )}
+
+                    {/* DOWNLOAD */}
+
+                    {admissionLetterAvailable &&
+                    admissionDownloadUrl ? (
+
+                      <div className="mt-5">
+
+                        <a
+                          href={admissionDownloadUrl}
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-xl
+                            bg-[#0f4f3f]
+                            px-5
+                            py-3
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-sm
+                            transition
+                            hover:bg-[#0c3f32]
+                          "
+                        >
+
+                          <Download size={17} />
+
+                          Download Admission Letter
+
+                        </a>
+
+                      </div>
+
+                    ) : (
 
                       <div
                         className="
-                          flex h-9 w-9
-                          shrink-0
+                          mt-5
+                          inline-flex
                           items-center
-                          justify-center
-                          rounded-lg
-                          bg-white
-                          text-amber-600
-                          shadow-sm
+                          gap-2
+                          rounded-xl
+                          border
+                          border-gray-200
+                          bg-gray-50
+                          px-4
+                          py-3
+                          text-sm
+                          font-semibold
+                          text-gray-400
                         "
                       >
-                        <Clock3 size={18} />
-                      </div>
 
-                      <div>
+                        <Clock3 size={17} />
 
-                        <p
-                          className="
-                            text-sm
-                            font-semibold
-                            text-amber-800
-                          "
-                        >
-                          Admission Letter Not Yet Available
-                        </p>
-
-                        <p
-                          className="
-                            mt-0.5
-                            text-xs
-                            leading-5
-                            text-amber-700
-                          "
-                        >
-                          Your application is approved, but
-                          the Admissions Office has not yet
-                          generated your official admission
-                          letter.
-                        </p>
+                        Admission Letter Pending
 
                       </div>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              </section>
+
+              {/* =================================================
+                  STUDENT INFORMATION
+              ================================================= */}
+
+              <AdmissionSection
+                title="Student Information"
+                description="Information associated with your admission record."
+                icon={<UserRound size={20} />}
+              >
+
+                <div
+                  className="
+                    grid
+                    gap-5
+                    md:grid-cols-2
+                  "
+                >
+
+                  <AdmissionInfo
+                    label="Full Name"
+                    value={fullName}
+                  />
+
+                  <AdmissionInfo
+                    label="Mobile Number"
+                    value={student.mobile}
+                  />
+
+                  <AdmissionInfo
+                    label="Email Address"
+                    value={student.email}
+                  />
+
+                  <AdmissionInfo
+                    label="Application Number"
+                    value={applicationNumber}
+                  />
+
+                </div>
+
+              </AdmissionSection>
+
+              {/* =================================================
+                  PROGRAMME INFORMATION
+              ================================================= */}
+
+              <AdmissionSection
+                title="Programme Information"
+                description="Your selected programme and intake."
+                icon={<BookOpen size={20} />}
+              >
+
+                <div
+                  className="
+                    grid
+                    gap-5
+                    md:grid-cols-2
+                  "
+                >
+
+                  <div
+                    className="
+                      rounded-xl
+                      border
+                      border-[#0f4f3f]/10
+                      bg-[#f7fbf9]
+                      p-5
+                    "
+                  >
+
+                    <p
+                      className="
+                        text-xs
+                        font-semibold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                      "
+                    >
+                      Programme
+                    </p>
+
+                    <p
+                      className="
+                        mt-2
+                        text-base
+                        font-bold
+                        text-[#0f4f3f]
+                      "
+                    >
+                      {admission?.course ||
+                        student.course ||
+                        '—'}
+                    </p>
+
+                  </div>
+
+                  <div
+                    className="
+                      rounded-xl
+                      border
+                      border-[#d7a93b]/20
+                      bg-[#fffdf5]
+                      p-5
+                    "
+                  >
+
+                    <p
+                      className="
+                        text-xs
+                        font-semibold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                      "
+                    >
+                      Intake
+                    </p>
+
+                    <p
+                      className="
+                        mt-2
+                        text-base
+                        font-bold
+                        text-[#a67d13]
+                      "
+                    >
+                      {admission?.intake ||
+                        student.intake ||
+                        '—'}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </AdmissionSection>
+
+              {/* =================================================
+                  NEXT STEPS
+              ================================================= */}
+
+              <section
+                className="
+                  mt-6
+                  rounded-2xl
+                  border
+                  border-gray-100
+                  bg-white
+                  p-6
+                  shadow-sm
+                  sm:p-7
+                "
+              >
+
+                <div className="flex items-start gap-4">
+
+                  <div
+                    className="
+                      flex
+                      h-11
+                      w-11
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#d7a93b]/15
+                      text-[#a67d13]
+                    "
+                  >
+                    <CalendarDays size={21} />
+                  </div>
+
+                  <div>
+
+                    <h3
+                      className="
+                        font-bold
+                        text-[#0c1f1a]
+                      "
+                    >
+                      What to do next
+                    </h3>
+
+                    <div
+                      className="
+                        mt-4
+                        space-y-3
+                        text-sm
+                        text-gray-600
+                      "
+                    >
+
+                      <StepItem
+                        number="01"
+                        text={
+                          admissionLetterAvailable
+                            ? 'Download and carefully read your admission letter.'
+                            : 'Wait for the Admissions Office to generate your official admission letter.'
+                        }
+                      />
+
+                      <StepItem
+                        number="02"
+                        text="Follow the reporting and registration instructions provided in the admission letter."
+                      />
+
+                      <StepItem
+                        number="03"
+                        text="Prepare the required original documents for admission and registration."
+                      />
+
+                      <StepItem
+                        number="04"
+                        text="Contact the Admissions Office if you need clarification before reporting."
+                      />
 
                     </div>
 
-                  ) : null}
+                  </div>
 
                 </div>
+
+              </section>
+
+            </>
+
+          ) : isRejected ? (
+
+            /* =================================================
+               REJECTED
+            ================================================= */
+
+            <section
+              className="
+                rounded-2xl
+                border
+                border-red-100
+                bg-white
+                p-7
+                shadow-sm
+                sm:p-9
+              "
+            >
+
+              <div
+                className="
+                  mx-auto
+                  max-w-2xl
+                  text-center
+                "
+              >
+
+                <div
+                  className="
+                    mx-auto
+                    flex
+                    h-16
+                    w-16
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-red-50
+                    text-red-600
+                  "
+                >
+                  <AlertCircle size={30} />
+                </div>
+
+                <h3
+                  className="
+                    mt-5
+                    text-xl
+                    font-bold
+                    text-[#0c1f1a]
+                  "
+                >
+                  Application Not Approved
+                </h3>
+
+                <p
+                  className="
+                    mt-3
+                    text-sm
+                    leading-6
+                    text-gray-500
+                  "
+                >
+                  Your application has not been approved
+                  at this time. If you require more
+                  information about this decision, please
+                  contact the Admissions Office.
+                </p>
+
+                <Link
+                  href="/student/dashboard/contact"
+                  className="
+                    mt-6
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-xl
+                    bg-[#0f4f3f]
+                    px-5
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-[#0c3f32]
+                  "
+                >
+
+                  Contact Admissions
+
+                  <ChevronRight size={17} />
+
+                </Link>
 
               </div>
 
             </section>
 
-            {/* =================================================
-                APPROVED
-            ================================================= */}
+          ) : (
 
-            {isApproved ? (
-              <>
+            /* =================================================
+               PENDING
+            ================================================= */
 
-                {/* WELCOME CARD */}
-
-                <section
-                  className="
-                    mb-6
-                    overflow-hidden
-                    rounded-2xl
-                    bg-[#0c1f1a]
-                    text-white
-                    shadow-sm
-                  "
-                >
-
-                  <div className="relative p-7 sm:p-9">
-
-                    <div
-                      className="
-                        absolute right-6 top-6
-                        opacity-10
-                      "
-                    >
-                      <Award size={110} />
-                    </div>
-
-                    <div className="relative">
-
-                      <div
-                        className="
-                          mb-4
-                          flex h-12 w-12
-                          items-center
-                          justify-center
-                          rounded-xl
-                          bg-[#d7a93b]
-                          text-[#0c1f1a]
-                        "
-                      >
-                        <GraduationCap size={24} />
-                      </div>
-
-                      <p
-                        className="
-                          text-sm
-                          font-semibold
-                          text-[#d7a93b]
-                        "
-                      >
-                        Congratulations, {firstName}
-                      </p>
-
-                      <h3
-                        className="
-                          mt-1
-                          text-2xl
-                          font-bold
-                          sm:text-3xl
-                        "
-                      >
-                        You have been admitted to
-                        Shifah Medical Training College.
-                      </h3>
-
-                      <p
-                        className="
-                          mt-3
-                          max-w-2xl
-                          text-sm
-                          leading-6
-                          text-white/60
-                        "
-                      >
-                        Your application has successfully passed
-                        the admissions review process. Your
-                        official admission record and admission
-                        letter will appear here once processed
-                        by the Admissions Office.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </section>
-
-                {/* ADMISSION DETAILS */}
-
-                <AdmissionSection
-                  title="Admission Details"
-                  description="Your official programme, intake and admission information."
-                  icon={<GraduationCap size={20} />}
-                >
-
-                  <div
-                    className="
-                      grid gap-5
-                      sm:grid-cols-2
-                      lg:grid-cols-3
-                    "
-                  >
-
-                    <AdmissionInfo
-                      label="Applicant Name"
-                      value={fullName}
-                    />
-
-                    <AdmissionInfo
-                      label="Application Number"
-                      value={applicationNumber}
-                    />
-
-                    <AdmissionInfo
-                      label="Admission Number"
-                      value={admissionNumber}
-                      highlight={Boolean(admissionNumber)}
-                    />
-
-                    <AdmissionInfo
-                      label="Programme"
-                      value={
-                        admission?.course ||
-                        student.course
-                      }
-                      highlight
-                    />
-
-                    <AdmissionInfo
-                      label="Intake"
-                      value={
-                        admission?.intake ||
-                        student.intake
-                      }
-                      highlight
-                    />
-
-                    <AdmissionInfo
-                      label="Admission Record"
-                      value={
-                        hasActiveAdmission
-                          ? 'ACTIVE'
-                          : 'PROCESSING'
-                      }
-                      highlight={hasActiveAdmission}
-                    />
-
-                    <AdmissionInfo
-                      label="Application Status"
-                      value="ADMITTED"
-                      highlight
-                    />
-
-                    <AdmissionInfo
-                      label="Application Fee"
-                      value={`KSh ${Number(
-                        student.application_fee || 0
-                      ).toLocaleString()}`}
-                    />
-
-                  </div>
-
-                </AdmissionSection>
-
-                {/* =================================================
-                    OFFICIAL ADMISSION LETTER
-
-                    THIS IS THE ONLY PLACE WHERE THE DOWNLOAD
-                    BUTTON IS DISPLAYED.
-                ================================================= */}
-
-                <section
-                  className="
-                    mt-6
-                    rounded-2xl
-                    border border-gray-100
-                    bg-white
-                    p-6
-                    shadow-sm
-                    sm:p-7
-                  "
-                >
-
-                  <div className="flex items-start gap-4">
-
-                    <div
-                      className={`
-                        flex h-11 w-11
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-xl
-                        ${
-                          admissionLetterAvailable
-                            ? 'bg-emerald-50 text-emerald-600'
-                            : 'bg-amber-50 text-amber-600'
-                        }
-                      `}
-                    >
-
-                      {admissionLetterAvailable ? (
-                        <CheckCircle2 size={21} />
-                      ) : (
-                        <Clock3 size={21} />
-                      )}
-
-                    </div>
-
-                    <div className="flex-1">
-
-                      <h3
-                        className="
-                          font-bold
-                          text-[#0c1f1a]
-                        "
-                      >
-                        Official Admission Letter
-                      </h3>
-
-                      <p
-                        className="
-                          mt-1
-                          text-sm
-                          leading-6
-                          text-gray-500
-                        "
-                      >
-
-                        {admissionLetterAvailable
-                          ? 'Your official admission letter has been generated by the Admissions Office and is ready for download.'
-                          : 'Your application has been approved, but your official admission letter has not yet been generated by the Admissions Office.'}
-
-                      </p>
-
-                      {admissionNumber && (
-                        <div
-                          className="
-                            mt-4
-                            inline-flex
-                            items-center
-                            gap-2
-                            rounded-lg
-                            bg-[#f7fbf9]
-                            px-3 py-2
-                          "
-                        >
-
-                          <span
-                            className="
-                              text-xs
-                              font-medium
-                              text-gray-500
-                            "
-                          >
-                            Admission No:
-                          </span>
-
-                          <span
-                            className="
-                              text-xs
-                              font-bold
-                              text-[#0f4f3f]
-                            "
-                          >
-                            {admissionNumber}
-                          </span>
-
-                        </div>
-                      )}
-
-                      {/* =================================================
-                          SINGLE DOWNLOAD BUTTON
-                      ================================================= */}
-
-                      {admissionLetterAvailable &&
-                      admissionDownloadUrl ? (
-
-                        <div className="mt-5">
-
-                          <a
-                            href={admissionDownloadUrl}
-                            className="
-                              inline-flex
-                              items-center
-                              gap-2
-                              rounded-xl
-                              bg-[#0f4f3f]
-                              px-5 py-3
-                              text-sm
-                              font-semibold
-                              text-white
-                              shadow-sm
-                              transition
-                              hover:bg-[#0c3f32]
-                            "
-                          >
-
-                            <Download size={17} />
-
-                            Download Admission Letter
-
-                          </a>
-
-                        </div>
-
-                      ) : (
-
-                        <div
-                          className="
-                            mt-5
-                            inline-flex
-                            items-center
-                            gap-2
-                            rounded-xl
-                            border
-                            border-gray-200
-                            bg-gray-50
-                            px-4 py-3
-                            text-sm
-                            font-semibold
-                            text-gray-400
-                          "
-                        >
-
-                          <Clock3 size={17} />
-
-                          Admission Letter Pending
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  </div>
-
-                </section>
-
-                {/* STUDENT INFORMATION */}
-
-                <AdmissionSection
-                  title="Student Information"
-                  description="Information associated with your admission record."
-                  icon={<UserRound size={20} />}
-                >
-
-                  <div
-                    className="
-                      grid gap-5
-                      md:grid-cols-2
-                    "
-                  >
-
-                    <AdmissionInfo
-                      label="Full Name"
-                      value={fullName}
-                    />
-
-                    <AdmissionInfo
-                      label="Mobile Number"
-                      value={student.mobile}
-                    />
-
-                    <AdmissionInfo
-                      label="Email Address"
-                      value={student.email}
-                    />
-
-                    <AdmissionInfo
-                      label="Application Number"
-                      value={applicationNumber}
-                    />
-
-                  </div>
-
-                </AdmissionSection>
-
-                {/* PROGRAMME INFORMATION */}
-
-                <AdmissionSection
-                  title="Programme Information"
-                  description="Your selected programme and intake."
-                  icon={<BookOpen size={20} />}
-                >
-
-                  <div
-                    className="
-                      grid gap-5
-                      md:grid-cols-2
-                    "
-                  >
-
-                    <div
-                      className="
-                        rounded-xl
-                        border
-                        border-[#0f4f3f]/10
-                        bg-[#f7fbf9]
-                        p-5
-                      "
-                    >
-
-                      <p
-                        className="
-                          text-xs
-                          font-semibold
-                          uppercase
-                          tracking-wider
-                          text-gray-400
-                        "
-                      >
-                        Programme
-                      </p>
-
-                      <p
-                        className="
-                          mt-2
-                          text-base
-                          font-bold
-                          text-[#0f4f3f]
-                        "
-                      >
-                        {admission?.course ||
-                          student.course ||
-                          '—'}
-                      </p>
-
-                    </div>
-
-                    <div
-                      className="
-                        rounded-xl
-                        border
-                        border-[#d7a93b]/20
-                        bg-[#fffdf5]
-                        p-5
-                      "
-                    >
-
-                      <p
-                        className="
-                          text-xs
-                          font-semibold
-                          uppercase
-                          tracking-wider
-                          text-gray-400
-                        "
-                      >
-                        Intake
-                      </p>
-
-                      <p
-                        className="
-                          mt-2
-                          text-base
-                          font-bold
-                          text-[#a67d13]
-                        "
-                      >
-                        {admission?.intake ||
-                          student.intake ||
-                          '—'}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </AdmissionSection>
-
-                {/* NEXT STEPS */}
-
-                <section
-                  className="
-                    mt-6
-                    rounded-2xl
-                    border border-gray-100
-                    bg-white
-                    p-6
-                    shadow-sm
-                    sm:p-7
-                  "
-                >
-
-                  <div className="flex items-start gap-4">
-
-                    <div
-                      className="
-                        flex h-11 w-11
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-xl
-                        bg-[#d7a93b]/15
-                        text-[#a67d13]
-                      "
-                    >
-                      <CalendarDays size={21} />
-                    </div>
-
-                    <div>
-
-                      <h3
-                        className="
-                          font-bold
-                          text-[#0c1f1a]
-                        "
-                      >
-                        What to do next
-                      </h3>
-
-                      <div
-                        className="
-                          mt-4
-                          space-y-3
-                          text-sm
-                          text-gray-600
-                        "
-                      >
-
-                        <StepItem
-                          number="01"
-                          text={
-                            admissionLetterAvailable
-                              ? 'Download and carefully read your admission letter.'
-                              : 'Wait for the Admissions Office to generate your official admission letter.'
-                          }
-                        />
-
-                        <StepItem
-                          number="02"
-                          text="Follow the reporting and registration instructions provided in the admission letter."
-                        />
-
-                        <StepItem
-                          number="03"
-                          text="Prepare the required original documents for admission and registration."
-                        />
-
-                        <StepItem
-                          number="04"
-                          text="Contact the Admissions Office if you need clarification before reporting."
-                        />
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </section>
-
-              </>
-
-            ) : isRejected ? (
-
-              /* REJECTED */
+            <>
 
               <section
                 className="
                   rounded-2xl
-                  border border-red-100
+                  border
+                  border-amber-100
                   bg-white
                   p-7
                   shadow-sm
@@ -1498,15 +1335,17 @@ export default async function StudentAdmissionPage() {
                   <div
                     className="
                       mx-auto
-                      flex h-16 w-16
+                      flex
+                      h-16
+                      w-16
                       items-center
                       justify-center
                       rounded-2xl
-                      bg-red-50
-                      text-red-600
+                      bg-amber-50
+                      text-amber-600
                     "
                   >
-                    <AlertCircle size={30} />
+                    <Clock3 size={30} />
                   </div>
 
                   <h3
@@ -1517,7 +1356,7 @@ export default async function StudentAdmissionPage() {
                       text-[#0c1f1a]
                     "
                   >
-                    Application Not Approved
+                    Your Admission Is Still Pending
                   </h3>
 
                   <p
@@ -1528,447 +1367,327 @@ export default async function StudentAdmissionPage() {
                       text-gray-500
                     "
                   >
-                    Your application has not been approved
-                    at this time. If you require more
-                    information about this decision, please
-                    contact the Admissions Office.
+                    The Admissions Office is currently
+                    reviewing your application. Once a
+                    decision has been made, your admission
+                    status will be updated here.
                   </p>
-
-                  <Link
-                    href="/student/dashboard/contact"
-                    className="
-                      mt-6
-                      inline-flex
-                      items-center
-                      gap-2
-                      rounded-xl
-                      bg-[#0f4f3f]
-                      px-5 py-3
-                      text-sm
-                      font-semibold
-                      text-white
-                      transition
-                      hover:bg-[#0c3f32]
-                    "
-                  >
-
-                    Contact Admissions
-
-                    <ChevronRight size={17} />
-
-                  </Link>
 
                 </div>
 
               </section>
 
-            ) : (
+              {/* APPLICATION SUMMARY */}
 
-              /* PENDING */
+              <section
+                className="
+                  mt-6
+                  rounded-2xl
+                  border
+                  border-gray-100
+                  bg-white
+                  p-6
+                  shadow-sm
+                  sm:p-7
+                "
+              >
 
-              <>
-
-                <section
-                  className="
-                    rounded-2xl
-                    border border-amber-100
-                    bg-white
-                    p-7
-                    shadow-sm
-                    sm:p-9
-                  "
-                >
+                <div className="flex items-start gap-4">
 
                   <div
                     className="
-                      mx-auto
-                      max-w-2xl
-                      text-center
+                      flex
+                      h-11
+                      w-11
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#0f4f3f]/10
+                      text-[#0f4f3f]
                     "
                   >
+                    <ShieldCheck size={21} />
+                  </div>
 
-                    <div
-                      className="
-                        mx-auto
-                        flex h-16 w-16
-                        items-center
-                        justify-center
-                        rounded-2xl
-                        bg-amber-50
-                        text-amber-600
-                      "
-                    >
-                      <Clock3 size={30} />
-                    </div>
+                  <div>
 
                     <h3
                       className="
-                        mt-5
-                        text-xl
                         font-bold
                         text-[#0c1f1a]
                       "
                     >
-                      Your Admission Is Still Pending
+                      Application Under Review
                     </h3>
 
                     <p
                       className="
-                        mt-3
+                        mt-1
                         text-sm
                         leading-6
                         text-gray-500
                       "
                     >
-                      The Admissions Office is currently
-                      reviewing your application. Once a
-                      decision has been made, your admission
-                      status will be updated here.
+                      Your application has been received
+                      and is associated with the following
+                      programme.
                     </p>
 
                   </div>
 
-                </section>
-
-                {/* APPLICATION SUMMARY */}
-
-                <section
-                  className="
-                    mt-6
-                    rounded-2xl
-                    border border-gray-100
-                    bg-white
-                    p-6
-                    shadow-sm
-                    sm:p-7
-                  "
-                >
-
-                  <div className="flex items-start gap-4">
-
-                    <div
-                      className="
-                        flex h-11 w-11
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-xl
-                        bg-[#0f4f3f]/10
-                        text-[#0f4f3f]
-                      "
-                    >
-                      <ShieldCheck size={21} />
-                    </div>
-
-                    <div>
-
-                      <h3
-                        className="
-                          font-bold
-                          text-[#0c1f1a]
-                        "
-                      >
-                        Application Under Review
-                      </h3>
-
-                      <p
-                        className="
-                          mt-1
-                          text-sm
-                          leading-6
-                          text-gray-500
-                        "
-                      >
-                        Your application has been received
-                        and is associated with the following
-                        programme.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  <div
-                    className="
-                      mt-6
-                      grid gap-5
-                      border-t border-gray-100
-                      pt-5
-                      md:grid-cols-3
-                    "
-                  >
-
-                    <AdmissionInfo
-                      label="Application Number"
-                      value={applicationNumber}
-                    />
-
-                    <AdmissionInfo
-                      label="Programme"
-                      value={student.course}
-                      highlight
-                    />
-
-                    <AdmissionInfo
-                      label="Intake"
-                      value={student.intake}
-                    />
-
-                  </div>
-
-                </section>
-
-              </>
-
-            )}
-
-            {/* =================================================
-                APPLICATION RECORD
-            ================================================= */}
-
-            <section
-              className="
-                mt-6
-                rounded-2xl
-                border border-gray-100
-                bg-white
-                p-6
-                shadow-sm
-                sm:p-7
-              "
-            >
-
-              <div className="flex items-start gap-4">
+                </div>
 
                 <div
                   className="
-                    flex h-11 w-11
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-[#0f4f3f]/10
-                    text-[#0f4f3f]
+                    mt-6
+                    grid
+                    gap-5
+                    border-t
+                    border-gray-100
+                    pt-5
+                    md:grid-cols-3
                   "
                 >
-                  <ShieldCheck size={21} />
-                </div>
 
-                <div>
+                  <AdmissionInfo
+                    label="Application Number"
+                    value={applicationNumber}
+                  />
 
-                  <h3
-                    className="
-                      font-bold
-                      text-[#0c1f1a]
-                    "
-                  >
-                    Admission Record
-                  </h3>
+                  <AdmissionInfo
+                    label="Programme"
+                    value={student.course}
+                    highlight
+                  />
 
-                  <p
-                    className="
-                      mt-1
-                      text-sm
-                      leading-6
-                      text-gray-500
-                    "
-                  >
-                    This admission information is linked
-                    to your authenticated application record.
-                  </p>
+                  <AdmissionInfo
+                    label="Intake"
+                    value={student.intake}
+                  />
 
                 </div>
 
-              </div>
+              </section>
+
+            </>
+
+          )}
+
+          {/* =================================================
+              APPLICATION RECORD
+          ================================================= */}
+
+          <section
+            className="
+              mt-6
+              rounded-2xl
+              border
+              border-gray-100
+              bg-white
+              p-6
+              shadow-sm
+              sm:p-7
+            "
+          >
+
+            <div className="flex items-start gap-4">
 
               <div
                 className="
-                  mt-6
-                  grid gap-5
-                  border-t border-gray-100
-                  pt-5
-                  sm:grid-cols-3
+                  flex
+                  h-11
+                  w-11
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-[#0f4f3f]/10
+                  text-[#0f4f3f]
                 "
               >
-
-                <AdmissionInfo
-                  label="Application Number"
-                  value={applicationNumber}
-                />
-
-                <AdmissionInfo
-                  label="Admission Number"
-                  value={admissionNumber}
-                  highlight={Boolean(admissionNumber)}
-                />
-
-                <AdmissionInfo
-                  label="Application Date"
-                  value={applicationDate}
-                />
-
-                <AdmissionInfo
-                  label="Payment Status"
-                  value={paymentStatus}
-                  highlight={isPaid}
-                />
-
-                {isApproved && (
-                  <AdmissionInfo
-                    label="Admission Letter"
-                    value={
-                      admissionLetterAvailable
-                        ? 'AVAILABLE'
-                        : 'NOT YET AVAILABLE'
-                    }
-                    highlight={admissionLetterAvailable}
-                  />
-                )}
-
+                <ShieldCheck size={21} />
               </div>
 
-            </section>
+              <div>
 
-            {/* NOTICE */}
-
-            <div
-              className="
-                mt-6
-                rounded-2xl
-                border
-                border-[#d7a93b]/20
-                bg-[#fffdf5]
-                p-5
-              "
-            >
-
-              <div className="flex gap-3">
-
-                <AlertCircle
-                  size={20}
+                <h3
                   className="
-                    mt-0.5
-                    shrink-0
-                    text-[#a67d13]
+                    font-bold
+                    text-[#0c1f1a]
                   "
-                />
+                >
+                  Admission Record
+                </h3>
 
-                <div>
-
-                  <p
-                    className="
-                      text-sm
-                      font-semibold
-                      text-[#0c1f1a]
-                    "
-                  >
-                    Need help with your admission?
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-sm
-                      leading-6
-                      text-gray-600
-                    "
-                  >
-                    If you have questions about your
-                    admission, reporting date, programme
-                    or registration, please contact the
-                    Admissions Office.
-                  </p>
-
-                  <Link
-                    href="/student/dashboard/contact"
-                    className="
-                      mt-3
-                      inline-flex
-                      items-center
-                      gap-1
-                      text-sm
-                      font-semibold
-                      text-[#0f4f3f]
-                      hover:text-[#a67d13]
-                    "
-                  >
-
-                    Contact Admissions
-
-                    <ChevronRight size={16} />
-
-                  </Link>
-
-                </div>
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    leading-6
+                    text-gray-500
+                  "
+                >
+                  This admission information is linked
+                  to your authenticated application record.
+                </p>
 
               </div>
 
             </div>
 
-            {/* FOOTER */}
+            <div
+              className="
+                mt-6
+                grid
+                gap-5
+                border-t
+                border-gray-100
+                pt-5
+                sm:grid-cols-3
+              "
+            >
 
-            <div className="py-8 text-center">
+              <AdmissionInfo
+                label="Application Number"
+                value={applicationNumber}
+              />
 
-              <p className="text-xs text-gray-400">
-                © {new Date().getFullYear()} Shifah Medical
-                Training College. All rights reserved.
-              </p>
+              <AdmissionInfo
+                label="Admission Number"
+                value={admissionNumber}
+                highlight={Boolean(admissionNumber)}
+              />
 
-              <p className="mt-1 text-[11px] text-gray-400">
-                Student Portal • Secure Applicant Access
-              </p>
+              <AdmissionInfo
+                label="Application Date"
+                value={applicationDate}
+              />
+
+              <AdmissionInfo
+                label="Payment Status"
+                value={paymentStatus}
+                highlight={isPaid}
+              />
+
+              {isApproved && (
+                <AdmissionInfo
+                  label="Admission Letter"
+                  value={
+                    admissionLetterAvailable
+                      ? 'AVAILABLE'
+                      : 'NOT YET AVAILABLE'
+                  }
+                  highlight={
+                    admissionLetterAvailable
+                  }
+                />
+              )}
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              NOTICE
+          ================================================= */}
+
+          <div
+            className="
+              mt-6
+              rounded-2xl
+              border
+              border-[#d7a93b]/20
+              bg-[#fffdf5]
+              p-5
+            "
+          >
+
+            <div className="flex gap-3">
+
+              <AlertCircle
+                size={20}
+                className="
+                  mt-0.5
+                  shrink-0
+                  text-[#a67d13]
+                "
+              />
+
+              <div>
+
+                <p
+                  className="
+                    text-sm
+                    font-semibold
+                    text-[#0c1f1a]
+                  "
+                >
+                  Need help with your admission?
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    leading-6
+                    text-gray-600
+                  "
+                >
+                  If you have questions about your
+                  admission, reporting date, programme
+                  or registration, please contact the
+                  Admissions Office.
+                </p>
+
+                <Link
+                  href="/student/dashboard/contact"
+                  className="
+                    mt-3
+                    inline-flex
+                    items-center
+                    gap-1
+                    text-sm
+                    font-semibold
+                    text-[#0f4f3f]
+                    hover:text-[#a67d13]
+                  "
+                >
+
+                  Contact Admissions
+
+                  <ChevronRight size={16} />
+
+                </Link>
+
+              </div>
 
             </div>
 
           </div>
 
-        </main>
+          {/* =================================================
+              FOOTER
+          ================================================= */}
 
-      </div>
+          <div className="py-8 text-center">
+
+            <p className="text-xs text-gray-400">
+              © {new Date().getFullYear()} Shifah Medical
+              Training College. All rights reserved.
+            </p>
+
+            <p className="mt-1 text-[11px] text-gray-400">
+              Student Portal • Secure Applicant Access
+            </p>
+
+          </div>
+
+        </div>
+
+      </main>
 
     </div>
-  );
-}
-
-/* =========================================================
-   SIDEBAR ITEM
-========================================================= */
-
-function SidebarItem({
-  href,
-  icon,
-  label,
-  active = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`
-        flex items-center gap-3
-        rounded-xl
-        px-3.5 py-3
-        text-sm font-medium
-        transition
-        ${
-          active
-            ? 'bg-[#d7a93b] text-[#0c1f1a] shadow-sm'
-            : 'text-white/65 hover:bg-white/10 hover:text-white'
-        }
-      `}
-    >
-
-      {icon}
-
-      <span>
-        {label}
-      </span>
-
-    </Link>
   );
 }
 
@@ -1992,7 +1711,8 @@ function AdmissionSection({
       className="
         mt-6
         rounded-2xl
-        border border-gray-100
+        border
+        border-gray-100
         bg-white
         p-6
         shadow-sm
@@ -2004,7 +1724,9 @@ function AdmissionSection({
 
         <div
           className="
-            flex h-11 w-11
+            flex
+            h-11
+            w-11
             shrink-0
             items-center
             justify-center
@@ -2114,7 +1836,9 @@ function StepItem({
 
       <span
         className="
-          flex h-7 w-7
+          flex
+          h-7
+          w-7
           shrink-0
           items-center
           justify-center
@@ -2135,4 +1859,3 @@ function StepItem({
     </div>
   );
 }
-

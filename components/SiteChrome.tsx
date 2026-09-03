@@ -41,6 +41,12 @@ export function SiteChrome({
   ) {
     return <>{children}</>;
   }
+if (
+  pathname === '/student/login' ||
+  pathname.startsWith('/student/login/')
+) {
+  return <>{children}</>;
+}
 
   if (
     pathname === '/lecturer/dashboard' ||
@@ -48,12 +54,24 @@ export function SiteChrome({
   ) {
     return <>{children}</>;
   }
+  if (
+  pathname === '/lecturer/login' ||
+  pathname.startsWith('/lecturer/login/')
+) {
+  return <>{children}</>;
+}
    if (
     pathname === '/parent/dashboard' ||
     pathname.startsWith('/parent/dashboard/')
   ) {
     return <>{children}</>;
   }
+  if (
+  pathname === '/parent/login' ||
+  pathname.startsWith('/parent/login/')
+) {
+  return <>{children}</>;
+}
   /* =========================================================
      PUBLIC WEBSITE
   ========================================================= */

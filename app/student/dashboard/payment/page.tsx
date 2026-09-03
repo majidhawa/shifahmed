@@ -1,20 +1,11 @@
-
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 
 import pool from '@/lib/db';
 import { getStudentSession } from '@/lib/student-auth';
 
 import {
-  LayoutDashboard,
   FileText,
-  CreditCard,
-  GraduationCap,
-  FolderOpen,
-  User,
-  Phone,
-  LogOut,
   CheckCircle2,
   Clock3,
   AlertCircle,
@@ -115,12 +106,6 @@ export default async function StudentPaymentPage() {
     .filter(Boolean)
     .join(' ');
 
-  const firstName =
-    student.first_name || 'Student';
-
-  const studentInitial =
-    fullName.charAt(0).toUpperCase() || 'S';
-
   /* =======================================================
      PAYMENT STATUS
   ======================================================= */
@@ -137,9 +122,6 @@ export default async function StudentPaymentPage() {
 
   const isRejected =
     paymentStatusLower === 'rejected';
-
-  const isPending =
-    paymentStatusLower === 'pending';
 
   /* =======================================================
      APPLICATION STATUS
@@ -337,613 +319,353 @@ export default async function StudentPaymentPage() {
 
   /* =======================================================
      UI
+     
+     Header + Sidebar are supplied by:
+     
+     app/student/dashboard/layout.tsx
   ======================================================= */
 
   return (
     <div className="min-h-screen bg-[#f8faf9]">
 
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+      <main className="px-4 py-6 sm:px-6 lg:px-8">
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-[#0c1f1a] text-white lg:flex">
+        <div className="mx-auto max-w-7xl">
 
-        {/* =================================================
-            BRAND
-        ================================================= */}
+          {/* =================================================
+              BACK
+          ================================================= */}
 
-        <div className="flex h-20 items-center border-b border-white/10 px-5">
+          <Link
+            href="/student/dashboard"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-[#0f4f3f]"
+          >
+            <ArrowLeft size={17} />
 
-          <div className="flex items-center gap-3">
+            Back to Dashboard
+          </Link>
 
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-white/10">
+          {/* =================================================
+              INTRO
+          ================================================= */}
 
-              <Image
-                src="/images/logo.jpg"
-                alt="Shifah Medical Training College Logo"
-                width={48}
-                height={48}
-                className="h-full w-full object-contain"
-                priority
+          <div className="mb-6">
+
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+
+              <div>
+
+                <p className="text-sm font-semibold text-[#0f4f3f]">
+                  Application Payment
+                </p>
+
+                <h2 className="mt-1 text-2xl font-bold text-[#0c1f1a] sm:text-3xl">
+                  Payment & Receipt
+                </h2>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                  Pay your application fee securely
+                  through M-Pesa and download your
+                  official payment receipt after the
+                  payment has been verified.
+                </p>
+
+              </div>
+
+              <div className="flex items-center gap-3">
+
+                <span className="text-xs text-gray-400">
+                  Application No.
+                </span>
+
+                <span className="rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs font-bold text-gray-700">
+                  {student.application_number}
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* =================================================
+              PAYMENT STATUS SUMMARY
+          ================================================= */}
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+            <div className="grid md:grid-cols-3">
+
+              {/* =================================================
+                  APPLICATION FEE
+              ================================================= */}
+
+              <div className="p-6 sm:p-7">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
+
+                    <WalletCards size={22} />
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                      Application Fee
+                    </p>
+
+                    <p className="mt-1 text-xl font-bold text-[#0c1f1a]">
+                      KSh{' '}
+                      {applicationFee.toLocaleString(
+                        'en-KE'
+                      )}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  PAYMENT STATUS
+              ================================================= */}
+
+              <div className="border-t bg-[#fafcfb] p-6 md:border-l md:border-t-0 sm:p-7">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
+
+                    {isPaid ? (
+                      <CheckCircle2 size={22} />
+                    ) : isRejected ? (
+                      <AlertCircle size={22} />
+                    ) : (
+                      <Clock3 size={22} />
+                    )}
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                      Payment Status
+                    </p>
+
+                    <span
+                      className={`mt-1 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${paymentStatusClass}`}
+                    >
+
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+
+                      {paymentStatus}
+
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  APPLICATION STATUS
+              ================================================= */}
+
+              <div className="border-t p-6 md:border-l md:border-t-0 sm:p-7">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+
+                    <ShieldCheck size={22} />
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                      Application Status
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-[#0c1f1a]">
+                      {applicationStatus}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              PAYMENT CLIENT
+          ================================================= */}
+
+          <PaymentClient
+            payment={paymentData}
+          />
+
+          {/* =================================================
+              APPLICATION INFORMATION
+          ================================================= */}
+
+          <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-7">
+
+            <div className="flex items-start gap-4">
+
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
+
+                <FileText size={21} />
+
+              </div>
+
+              <div>
+
+                <h3 className="font-bold text-[#0c1f1a]">
+                  Application Information
+                </h3>
+
+                <p className="mt-1 text-sm leading-6 text-gray-500">
+                  Details associated with this payment.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="mt-6 grid gap-5 border-t border-gray-100 pt-5 sm:grid-cols-2 lg:grid-cols-4">
+
+              <InfoItem
+                label="Applicant"
+                value={fullName}
+              />
+
+              <InfoItem
+                label="Application Number"
+                value={
+                  student.application_number
+                }
+              />
+
+              <InfoItem
+                label="Course"
+                value={
+                  student.course
+                }
+              />
+
+              <InfoItem
+                label="Intake"
+                value={
+                  student.intake
+                }
+              />
+
+              <InfoItem
+                label="Date Submitted"
+                value={
+                  applicationDate
+                }
+              />
+
+              <InfoItem
+                label="M-Pesa Number"
+                value={
+                  paymentPhone ||
+                  'Not provided'
+                }
+              />
+
+              <InfoItem
+                label="M-Pesa Receipt"
+                value={
+                  student.mpesa_receipt_number ||
+                  'Not available'
+                }
+                highlight={
+                  Boolean(
+                    student.mpesa_receipt_number
+                  )
+                }
+              />
+
+              <InfoItem
+                label="Payment Date"
+                value={
+                  paymentDate
+                }
               />
 
             </div>
 
-            <div className="min-w-0">
+          </section>
 
-              <p className="truncate text-sm font-bold tracking-wide text-white">
-                SHIFAH MTC
-              </p>
+          {/* =================================================
+              SECURITY NOTICE
+          ================================================= */}
 
-              <p className="text-xs text-white/50">
-                Student Portal
-              </p>
+          <div className="mt-6 rounded-2xl border border-[#d7a93b]/20 bg-[#fffdf5] p-5">
 
-            </div>
+            <div className="flex gap-3">
 
-          </div>
+              <AlertCircle
+                size={20}
+                className="mt-0.5 shrink-0 text-[#a67d13]"
+              />
 
-        </div>
-
-        {/* =================================================
-            PROFILE
-        ================================================= */}
-
-        <div className="border-b border-white/10 p-5">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0f4f3f] text-sm font-bold ring-2 ring-[#d7a93b]/60">
-              {studentInitial}
-            </div>
-
-            <div className="min-w-0">
-
-              <p className="truncate text-sm font-semibold">
-                {fullName}
-              </p>
-
-              <p className="truncate text-xs text-white/50">
-                Applicant
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            NAVIGATION
-        ================================================= */}
-
-        <nav className="flex-1 px-4 py-6">
-
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-            Main Menu
-          </p>
-
-          <div className="space-y-1">
-
-            <SidebarItem
-              href="/student/dashboard"
-              icon={
-                <LayoutDashboard size={19} />
-              }
-              label="Dashboard"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/application"
-              icon={
-                <FileText size={19} />
-              }
-              label="My Application"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/payment"
-              icon={
-                <CreditCard size={19} />
-              }
-              label="Payment & Receipt"
-              active
-            />
-
-            <SidebarItem
-              href="/student/dashboard/admission"
-              icon={
-                <GraduationCap size={19} />
-              }
-              label="Admission"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/documents"
-              icon={
-                <FolderOpen size={19} />
-              }
-              label="My Documents"
-            />
-
-            <SidebarItem
-              href="/student/dashboard/profile"
-              icon={
-                <User size={19} />
-              }
-              label="My Profile"
-            />
-
-          </div>
-
-          {/* SUPPORT */}
-
-          <p className="mb-3 mt-8 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-            Support
-          </p>
-
-          <SidebarItem
-            href="/student/dashboard/contact"
-            icon={
-              <Phone size={19} />
-            }
-            label="Contact Admissions"
-          />
-
-        </nav>
-
-        {/* =================================================
-            LOGOUT
-        ================================================= */}
-
-        <div className="border-t border-white/10 p-4">
-
-          <form
-            action="/api/student/logout"
-            method="POST"
-          >
-
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
-            >
-
-              <LogOut size={19} />
-
-              Logout
-
-            </button>
-
-          </form>
-
-        </div>
-
-      </aside>
-
-      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
-
-      <div className="lg:pl-72">
-
-        {/* =================================================
-            TOP HEADER
-        ================================================= */}
-
-        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
-
-          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-
-            <div>
-
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#0f4f3f]">
-                Student Portal
-              </p>
-
-              <h1 className="mt-1 text-xl font-bold text-[#0c1f1a]">
-                Payment & Receipt
-              </h1>
-
-            </div>
-
-            <div className="flex items-center gap-3">
-
-              <div className="hidden text-right sm:block">
+              <div>
 
                 <p className="text-sm font-semibold text-[#0c1f1a]">
-                  {firstName}
+                  Important payment information
                 </p>
 
-                <p className="text-xs text-gray-500">
-                  {student.application_number}
+                <p className="mt-1 text-sm leading-6 text-gray-600">
+                  Only make payment using the official
+                  M-Pesa payment prompt generated by
+                  this portal. Your receipt becomes
+                  available only after the M-Pesa
+                  transaction has been successfully
+                  received and verified by the college
+                  system.
                 </p>
 
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0f4f3f] text-sm font-bold text-white">
-                {studentInitial}
               </div>
 
             </div>
 
           </div>
 
-        </header>
-
-        {/* =================================================
-            CONTENT
-        ================================================= */}
-
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
-
-          <div className="mx-auto max-w-7xl">
-
-            {/* BACK */}
-
-            <Link
-              href="/student/dashboard"
-              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-[#0f4f3f]"
-            >
-              <ArrowLeft size={17} />
-
-              Back to Dashboard
-            </Link>
-
-            {/* =================================================
-                INTRO
-            ================================================= */}
-
-            <div className="mb-6">
-
-              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-
-                <div>
-
-                  <p className="text-sm font-semibold text-[#0f4f3f]">
-                    Application Payment
-                  </p>
-
-                  <h2 className="mt-1 text-2xl font-bold text-[#0c1f1a] sm:text-3xl">
-                    Payment & Receipt
-                  </h2>
-
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                    Pay your application fee securely
-                    through M-Pesa and download your
-                    official payment receipt after the
-                    payment has been verified.
-                  </p>
-
-                </div>
-
-                <div className="flex items-center gap-3">
-
-                  <span className="text-xs text-gray-400">
-                    Application No.
-                  </span>
-
-                  <span className="rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs font-bold text-gray-700">
-                    {student.application_number}
-                  </span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* =================================================
-                PAYMENT STATUS SUMMARY
-            ================================================= */}
-
-            <section className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-
-              <div className="grid md:grid-cols-3">
-
-                {/* APPLICATION FEE */}
-
-                <div className="p-6 sm:p-7">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
-
-                      <WalletCards size={22} />
-
-                    </div>
-
-                    <div>
-
-                      <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                        Application Fee
-                      </p>
-
-                      <p className="mt-1 text-xl font-bold text-[#0c1f1a]">
-                        KSh{' '}
-                        {applicationFee.toLocaleString(
-                          'en-KE'
-                        )}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* PAYMENT STATUS */}
-
-                <div className="border-t bg-[#fafcfb] p-6 md:border-l md:border-t-0 sm:p-7">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
-
-                      {isPaid ? (
-                        <CheckCircle2 size={22} />
-                      ) : isRejected ? (
-                        <AlertCircle size={22} />
-                      ) : (
-                        <Clock3 size={22} />
-                      )}
-
-                    </div>
-
-                    <div>
-
-                      <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                        Payment Status
-                      </p>
-
-                      <span
-                        className={`mt-1 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${paymentStatusClass}`}
-                      >
-
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-
-                        {paymentStatus}
-
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* APPLICATION STATUS */}
-
-                <div className="border-t p-6 md:border-l md:border-t-0 sm:p-7">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-
-                      <ShieldCheck size={22} />
-
-                    </div>
-
-                    <div>
-
-                      <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                        Application Status
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold text-[#0c1f1a]">
-                        {applicationStatus}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </section>
-
-            {/* =================================================
-                PAYMENT CLIENT
-            ================================================= */}
-
-            <PaymentClient
-              payment={paymentData}
-            />
-
-            {/* =================================================
-                APPLICATION INFORMATION
-            ================================================= */}
-
-            <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-7">
-
-              <div className="flex items-start gap-4">
-
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
-
-                  <FileText size={21} />
-
-                </div>
-
-                <div>
-
-                  <h3 className="font-bold text-[#0c1f1a]">
-                    Application Information
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Details associated with this payment.
-                  </p>
-
-                </div>
-
-              </div>
-
-              <div className="mt-6 grid gap-5 border-t border-gray-100 pt-5 sm:grid-cols-2 lg:grid-cols-4">
-
-                <InfoItem
-                  label="Applicant"
-                  value={fullName}
-                />
-
-                <InfoItem
-                  label="Application Number"
-                  value={
-                    student.application_number
-                  }
-                />
-
-                <InfoItem
-                  label="Course"
-                  value={
-                    student.course
-                  }
-                />
-
-                <InfoItem
-                  label="Intake"
-                  value={
-                    student.intake
-                  }
-                />
-
-                <InfoItem
-                  label="Date Submitted"
-                  value={
-                    applicationDate
-                  }
-                />
-
-                <InfoItem
-                  label="M-Pesa Number"
-                  value={
-                    paymentPhone ||
-                    'Not provided'
-                  }
-                />
-
-                <InfoItem
-                  label="M-Pesa Receipt"
-                  value={
-                    student.mpesa_receipt_number ||
-                    'Not available'
-                  }
-                  highlight={
-                    Boolean(
-                      student.mpesa_receipt_number
-                    )
-                  }
-                />
-
-                <InfoItem
-                  label="Payment Date"
-                  value={
-                    paymentDate
-                  }
-                />
-
-              </div>
-
-            </section>
-
-            {/* =================================================
-                SECURITY NOTICE
-            ================================================= */}
-
-            <div className="mt-6 rounded-2xl border border-[#d7a93b]/20 bg-[#fffdf5] p-5">
-
-              <div className="flex gap-3">
-
-                <AlertCircle
-                  size={20}
-                  className="mt-0.5 shrink-0 text-[#a67d13]"
-                />
-
-                <div>
-
-                  <p className="text-sm font-semibold text-[#0c1f1a]">
-                    Important payment information
-                  </p>
-
-                  <p className="mt-1 text-sm leading-6 text-gray-600">
-                    Only make payment using the official
-                    M-Pesa payment prompt generated by
-                    this portal. Your receipt becomes
-                    available only after the M-Pesa
-                    transaction has been successfully
-                    received and verified by the college
-                    system.
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* =================================================
-                FOOTER
-            ================================================= */}
-
-            <div className="py-8 text-center">
-
-              <p className="text-xs text-gray-400">
-                © {new Date().getFullYear()} Shifah
-                Medical Training College. All rights
-                reserved.
-              </p>
-
-              <p className="mt-1 text-[11px] text-gray-400">
-                Student Portal • Secure Applicant Access
-              </p>
-
-            </div>
+          {/* =================================================
+              FOOTER
+          ================================================= */}
+
+          <div className="py-8 text-center">
+
+            <p className="text-xs text-gray-400">
+              © {new Date().getFullYear()} Shifah
+              Medical Training College. All rights
+              reserved.
+            </p>
+
+            <p className="mt-1 text-[11px] text-gray-400">
+              Student Portal • Secure Applicant Access
+            </p>
 
           </div>
 
-        </main>
+        </div>
 
-      </div>
+      </main>
 
     </div>
-  );
-}
-
-/* =========================================================
-   SIDEBAR ITEM
-========================================================= */
-
-function SidebarItem({
-  href,
-  icon,
-  label,
-  active = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`
-        flex items-center gap-3 rounded-xl
-        px-3.5 py-3 text-sm font-medium
-        transition
-        ${
-          active
-            ? 'bg-[#d7a93b] text-[#0c1f1a] shadow-sm'
-            : 'text-white/65 hover:bg-white/10 hover:text-white'
-        }
-      `}
-    >
-      {icon}
-
-      <span>
-        {label}
-      </span>
-    </Link>
   );
 }
 
@@ -983,4 +705,3 @@ function InfoItem({
     </div>
   );
 }
-

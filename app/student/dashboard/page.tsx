@@ -1,23 +1,12 @@
-// app/student/dashboard/page.tsx
-
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-
-import pool from '@/lib/db';
+import type { ReactNode } from 'react';
 
 import {
-  getStudentSession,
-} from '@/lib/student-auth';
-
-import {
-  LayoutDashboard,
   FileText,
   CreditCard,
   GraduationCap,
   FolderOpen,
-  Bell,
-  LogOut,
   ChevronRight,
   CheckCircle2,
   Clock3,
@@ -26,26 +15,33 @@ import {
   BookOpen,
   ShieldCheck,
   Award,
+  ClipboardList,
+  BarChart3,
 } from 'lucide-react';
+
+import pool from '@/lib/db';
+import { getStudentSession } from '@/lib/student-auth';
 
 /* =========================================================
    PROTECTED STUDENT DASHBOARD
+
+   IMPORTANT:
+   - Student authentication is handled here.
+   - StudentHeader is provided by:
+       app/student/dashboard/layout.tsx
+   - StudentSidebar is provided by:
+       app/student/dashboard/layout.tsx
+   - Do NOT render either component in this page.
 ========================================================= */
 
-/*
-  IMPORTANT:
-  This page contains private student information.
-  Do not allow Next.js to statically cache it.
-*/
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /* =========================================================
-   STUDENT DASHBOARD
+   PAGE
 ========================================================= */
 
 export default async function StudentDashboardPage() {
-
   /* =======================================================
      CHECK STUDENT SESSION
   ======================================================= */
@@ -154,16 +150,14 @@ export default async function StudentDashboardPage() {
     student.first_name || 'Student';
 
   /* =======================================================
-     STATUS
+     APPLICATION STATUS
   ======================================================= */
 
   const applicationStatus =
-    student.application_status ||
-    'Pending';
+    student.application_status || 'Pending';
 
   const paymentStatus =
-    student.payment_status ||
-    'Pending';
+    student.payment_status || 'Pending';
 
   const normalizedApplicationStatus =
     String(applicationStatus)
@@ -178,29 +172,14 @@ export default async function StudentDashboardPage() {
   const paymentComplete =
     normalizedPaymentStatus === 'paid';
 
-  const applicationApproved =
-    [
-      'approved',
-      'accepted',
-      'admitted',
-    ].includes(
-      normalizedApplicationStatus
-    );
+  const applicationApproved = [
+    'approved',
+    'accepted',
+    'admitted',
+  ].includes(normalizedApplicationStatus);
 
   /* =======================================================
      ADMISSION RECORD
-
-     IMPORTANT:
-
-     The official admission number comes ONLY from the
-     admissions table.
-
-     We do not use the application number as an admission
-     number.
-
-     Example:
-     Application Number: SMTC/2026/D19B0678
-     Admission Number:   SMTC/GEM01/026
   ======================================================= */
 
   let admission: {
@@ -231,9 +210,7 @@ export default async function StudentDashboardPage() {
 
         LIMIT 1
       `,
-      [
-        student.id,
-      ]
+      [student.id]
     );
 
     if (admissionResult.rows.length > 0) {
@@ -244,16 +221,12 @@ export default async function StudentDashboardPage() {
 
         admission_number:
           row.admission_number
-            ? String(
-                row.admission_number
-              ).trim()
+            ? String(row.admission_number).trim()
             : null,
 
         application_number:
           row.application_number
-            ? String(
-                row.application_number
-              ).trim()
+            ? String(row.application_number).trim()
             : null,
 
         course:
@@ -268,9 +241,7 @@ export default async function StudentDashboardPage() {
 
         admission_status:
           row.admission_status
-            ? String(
-                row.admission_status
-              )
+            ? String(row.admission_status)
             : null,
 
         admission_date:
@@ -284,9 +255,7 @@ export default async function StudentDashboardPage() {
   ======================================================= */
 
   const normalizedAdmissionStatus =
-    String(
-      admission?.admission_status || ''
-    )
+    String(admission?.admission_status || '')
       .trim()
       .toLowerCase();
 
@@ -302,6 +271,15 @@ export default async function StudentDashboardPage() {
     admission?.admission_number || null;
 
   /* =======================================================
+     PORTAL ROLE
+  ======================================================= */
+
+  const portalRole =
+    hasActiveAdmission
+      ? 'Student'
+      : 'Applicant';
+
+  /* =======================================================
      PROGRESS
   ======================================================= */
 
@@ -314,15 +292,6 @@ export default async function StudentDashboardPage() {
   if (applicationApproved) {
     progress = 100;
   }
-
-  /* =======================================================
-     INITIAL
-  ======================================================= */
-
-  const studentInitial =
-    fullName
-      .charAt(0)
-      .toUpperCase() || 'S';
 
   /* =======================================================
      APPLICATION DATE
@@ -360,11 +329,8 @@ export default async function StudentDashboardPage() {
   ======================================================= */
 
   function statusStyle(status: string) {
-
     const value =
-      status
-        .trim()
-        .toLowerCase();
+      status.trim().toLowerCase();
 
     if (
       value === 'paid' ||
@@ -402,14 +368,10 @@ export default async function StudentDashboardPage() {
   }
 
   const applicationStyle =
-    statusStyle(
-      String(applicationStatus)
-    );
+    statusStyle(String(applicationStatus));
 
   const paymentStyle =
-    statusStyle(
-      String(paymentStatus)
-    );
+    statusStyle(String(paymentStatus));
 
   /* =======================================================
      UI
@@ -417,645 +379,113 @@ export default async function StudentDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f7f9f8]">
+      {/* =================================================
+          DASHBOARD CONTENT
 
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+          Header and Sidebar are supplied by the shared
+          student dashboard layout.
+      ================================================= */}
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-[#0c1f1a] text-white lg:flex">
+      <main className="px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
 
-        {/* =================================================
-            BRAND / COLLEGE LOGO
-        ================================================= */}
+          {/* =================================================
+              WELCOME BANNER
+          ================================================= */}
 
-        <div className="flex h-20 items-center border-b border-white/10 px-5">
+          <section className="relative overflow-hidden rounded-2xl bg-[#0f4f3f] p-6 shadow-lg sm:p-8">
 
-          <Link
-            href="/student/dashboard"
-            className="flex items-center gap-3"
-          >
+            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/5" />
 
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-white/20">
+            <div className="absolute -bottom-28 right-20 h-64 w-64 rounded-full bg-[#d7a93b]/10" />
 
-              <Image
-                src="/images/logo.jpg"
-                alt="Shifah Medical Training College"
-                fill
-                priority
-                sizes="48px"
-                className="object-contain p-1"
-              />
+            <div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-center">
 
-            </div>
+              <div>
 
-            <div className="min-w-0">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80">
 
-              <p className="truncate text-sm font-bold tracking-wide">
-                SHIFAH MTC
-              </p>
-
-              <p className="truncate text-xs text-white/50">
-                Student Portal
-              </p>
-
-            </div>
-
-          </Link>
-
-        </div>
-
-        {/* =================================================
-            STUDENT PROFILE
-        ================================================= */}
-
-        <div className="border-b border-white/10 p-5">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0f4f3f] text-sm font-bold ring-2 ring-[#d7a93b]/60">
-
-              {studentInitial}
-
-            </div>
-
-            <div className="min-w-0">
-
-              <p className="truncate text-sm font-semibold">
-                {fullName}
-              </p>
-
-              <p className="truncate text-xs text-white/50">
-                Applicant
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            NAVIGATION
-        ================================================= */}
-
-        <nav className="flex-1 px-4 py-6">
-
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-            Main Menu
-          </p>
-
-          <SidebarItem
-            href="/student/dashboard"
-            icon={
-              <LayoutDashboard
-                size={19}
-              />
-            }
-            label="Dashboard"
-            active
-          />
-
-          <SidebarItem
-            href="/student/dashboard/application"
-            icon={
-              <FileText
-                size={19}
-              />
-            }
-            label="My Application"
-          />
-
-          <SidebarItem
-            href="/student/dashboard/payment"
-            icon={
-              <CreditCard
-                size={19}
-              />
-            }
-            label="Payment & Receipt"
-          />
-
-          <SidebarItem
-            href="/student/dashboard/admission"
-            icon={
-              <GraduationCap
-                size={19}
-              />
-            }
-            label="Admission"
-          />
-
-          <SidebarItem
-            href="/student/dashboard/documents"
-            icon={
-              <FolderOpen
-                size={19}
-              />
-            }
-            label="My Documents"
-          />
-
-          <p className="mb-3 mt-8 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-            Support
-          </p>
-
-          <SidebarItem
-            href="/student/dashboard/contact"
-            icon={
-              <Phone
-                size={19}
-              />
-            }
-            label="Contact Admissions"
-          />
-
-        </nav>
-
-        {/* =================================================
-            LOGOUT
-        ================================================= */}
-
-        <div className="border-t border-white/10 p-4">
-
-          <form
-            action="/api/student/logout"
-            method="POST"
-          >
-
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-red-500/10 hover:text-red-300"
-            >
-
-              <LogOut
-                size={19}
-              />
-
-              Logout
-
-            </button>
-
-          </form>
-
-        </div>
-
-      </aside>
-
-      {/* ===================================================
-          MAIN
-      =================================================== */}
-
-      <div className="lg:pl-72">
-
-        {/* =================================================
-            TOP HEADER
-        ================================================= */}
-
-        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
-
-          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-
-            <div>
-
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#0f4f3f]">
-                Student Portal
-              </p>
-
-              <h1 className="mt-1 text-xl font-bold text-[#0c1f1a]">
-                Dashboard
-              </h1>
-
-            </div>
-
-            <div className="flex items-center gap-4">
-
-              <button
-                type="button"
-                className="relative rounded-xl p-2.5 text-gray-500 transition hover:bg-gray-100 hover:text-[#0f4f3f]"
-                aria-label="Notifications"
-              >
-
-                <Bell
-                  size={20}
-                />
-
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#d7a93b]" />
-
-              </button>
-
-              <div className="hidden h-8 w-px bg-gray-200 sm:block" />
-
-              <div className="hidden text-right sm:block">
-
-                <p className="text-sm font-semibold text-[#0c1f1a]">
-                  {firstName}
-                </p>
-
-                <p className="text-xs text-gray-500">
-                  {student.application_number}
-                </p>
-
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0f4f3f] text-sm font-bold text-white">
-                {studentInitial}
-              </div>
-
-            </div>
-
-          </div>
-
-        </header>
-
-        {/* =================================================
-            CONTENT
-        ================================================= */}
-
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
-
-          <div className="mx-auto max-w-7xl">
-
-            {/* =================================================
-                WELCOME BANNER
-            ================================================= */}
-
-            <section className="relative overflow-hidden rounded-2xl bg-[#0f4f3f] p-6 shadow-lg sm:p-8">
-
-              <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/5" />
-
-              <div className="absolute -bottom-28 right-20 h-64 w-64 rounded-full bg-[#d7a93b]/10" />
-
-              <div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-center">
-
-                <div>
-
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80">
-
-                    <ShieldCheck
-                      size={14}
-                    />
-
-                    Applicant Portal
-
-                  </div>
-
-                  <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                    Welcome, {firstName}
-                  </h2>
-
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
-                    Manage your application,
-                    monitor your payment,
-                    check your admission status
-                    and access your student
-                    documents from one place.
-                  </p>
-
-                </div>
-
-                {/* =================================================
-                    APPLICATION / ADMISSION NUMBERS
-                ================================================= */}
-
-                <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:min-w-[430px]">
-
-                  {/* APPLICATION NUMBER */}
-
-                  <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-
-                    <p className="text-xs uppercase tracking-wider text-white/50">
-                      Application Number
-                    </p>
-
-                    <p className="mt-2 break-all font-mono text-sm font-bold text-white">
-                      {student.application_number}
-                    </p>
-
-                    <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
-
-                      <CalendarDays
-                        size={14}
-                      />
-
-                      Applied {applicationDate}
-
-                    </div>
-
-                  </div>
-
-                  {/* ADMISSION NUMBER */}
-
-                  <div className="rounded-2xl border border-[#d7a93b]/30 bg-[#d7a93b]/10 p-5 backdrop-blur">
-
-                    <div className="flex items-center justify-between gap-2">
-
-                      <p className="text-xs uppercase tracking-wider text-[#d7a93b]/80">
-                        Admission Number
-                      </p>
-
-                      <Award
-                        size={17}
-                        className="text-[#d7a93b]"
-                      />
-
-                    </div>
-
-                    <p className="mt-2 break-all font-mono text-sm font-bold text-[#d7a93b]">
-
-                      {admissionNumber ||
-                        'Not Yet Assigned'}
-
-                    </p>
-
-                    <p className="mt-3 text-xs text-white/50">
-
-                      {hasActiveAdmission
-                        ? 'Official admission record'
-                        : applicationApproved
-                        ? 'Awaiting admission record'
-                        : 'Available after admission'}
-
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </section>
-
-            {/* =================================================
-                SUMMARY CARDS
-            ================================================= */}
-
-            <section className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-
-              {/* APPLICATION STATUS */}
-
-              <StatusCard
-                title="Application Status"
-                value={String(
-                  applicationStatus
-                )}
-                icon={
-                  <FileText
-                    size={21}
-                  />
-                }
-                style={applicationStyle}
-              />
-
-              {/* PAYMENT STATUS */}
-
-              <StatusCard
-                title="Payment Status"
-                value={String(
-                  paymentStatus
-                )}
-                icon={
-                  <CreditCard
-                    size={21}
-                  />
-                }
-                style={paymentStyle}
-              />
-
-              {/* =================================================
-                  ADMISSION NUMBER CARD
-              ================================================= */}
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-
-                <div className="flex items-center justify-between">
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
-
-                    <GraduationCap
-                      size={21}
-                    />
-
-                  </div>
-
-                  <span className="text-xs font-medium text-gray-400">
-                    ADMISSION
-                  </span>
-
-                </div>
-
-                <p className="mt-5 text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Admission Number
-                </p>
-
-                <p className="mt-1 break-all font-mono text-sm font-bold leading-6 text-[#0f4f3f]">
-
-                  {admissionNumber ||
-                    'Not Yet Assigned'}
-
-                </p>
-
-                <p className="mt-2 text-xs text-gray-400">
+                  <ShieldCheck size={14} />
 
                   {hasActiveAdmission
-                    ? 'Official admission number'
-                    : applicationApproved
-                    ? 'Awaiting admission record'
-                    : 'Assigned after approval'}
+                    ? 'Active Student Account'
+                    : 'Applicant Portal'}
+
+                </div>
+
+                <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                  Welcome, {firstName}
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
+
+                  {hasActiveAdmission
+                    ? 'Welcome to your student portal. Access your courses, units, lessons, assignments, quizzes, results and learning progress from one place.'
+                    : 'Manage your application, monitor your payment, check your admission status and access your student documents from one place.'}
 
                 </p>
-
-              </div>
-
-              {/* DOCUMENTS */}
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-
-                <div className="flex items-center justify-between">
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
-
-                    <FolderOpen
-                      size={21}
-                    />
-
-                  </div>
-
-                  <span className="text-xs font-medium text-gray-400">
-                    DOCUMENTS
-                  </span>
-
-                </div>
-
-                <p className="mt-5 text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Submitted
-                </p>
-
-                <p className="mt-1 text-2xl font-bold text-[#0c1f1a]">
-
-                  {submittedDocuments}
-
-                  <span className="ml-1 text-sm font-medium text-gray-400">
-                    / 3
-                  </span>
-
-                </p>
-
-              </div>
-
-            </section>
-
-            {/* =================================================
-                MAIN GRID
-            ================================================= */}
-
-            <section className="mt-6 grid gap-6 xl:grid-cols-3">
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm xl:col-span-2">
-
-                <div className="flex items-start justify-between">
-
-                  <div>
-
-                    <h3 className="font-bold text-[#0c1f1a]">
-                      Application Progress
-                    </h3>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Track your application journey.
-                    </p>
-
-                  </div>
-
-                  <span className="text-lg font-bold text-[#0f4f3f]">
-                    {progress}%
-                  </span>
-
-                </div>
-
-                <div className="mt-6">
-
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-
-                    <div
-                      className="h-full rounded-full bg-[#0f4f3f] transition-all"
-                      style={{
-                        width: `${progress}%`,
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
-                <div className="mt-7 grid gap-6 md:grid-cols-3">
-
-                  <ProgressStep
-                    number="01"
-                    title="Application Submitted"
-                    description="Your application has been received."
-                    complete
-                  />
-
-                  <ProgressStep
-                    number="02"
-                    title="Application Fee"
-                    description={
-                      paymentComplete
-                        ? 'Payment verified successfully.'
-                        : 'Payment awaiting verification.'
-                    }
-                    complete={
-                      paymentComplete
-                    }
-                  />
-
-                  <ProgressStep
-                    number="03"
-                    title="Admission Decision"
-                    description={
-                      applicationApproved
-                        ? hasActiveAdmission
-                          ? `Admitted • ${admissionNumber || 'Admission number pending'}`
-                          : 'You have been admitted. Admission record pending.'
-                        : 'Awaiting admission decision.'
-                    }
-                    complete={
-                      applicationApproved
-                    }
-                  />
-
-                </div>
 
               </div>
 
               {/* =================================================
-                  INTAKE CARD
+                  APPLICATION / ADMISSION NUMBERS
               ================================================= */}
 
-              <div className="rounded-2xl bg-[#0c1f1a] p-6 text-white shadow-lg">
+              <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:min-w-[430px]">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-[#d7a93b]">
+                {/* APPLICATION NUMBER */}
 
-                  <GraduationCap
-                    size={22}
-                  />
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+
+                  <p className="text-xs uppercase tracking-wider text-white/50">
+                    Application Number
+                  </p>
+
+                  <p className="mt-2 break-all font-mono text-sm font-bold text-white">
+                    {student.application_number}
+                  </p>
+
+                  <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
+
+                    <CalendarDays size={14} />
+
+                    Applied {applicationDate}
+
+                  </div>
 
                 </div>
 
-                <p className="mt-7 text-xs font-medium uppercase tracking-wider text-white/40">
-                  Selected Intake
-                </p>
+                {/* ADMISSION NUMBER */}
 
-                <h3 className="mt-2 text-xl font-bold">
-                  {student.intake}
-                </h3>
+                <div className="rounded-2xl border border-[#d7a93b]/30 bg-[#d7a93b]/10 p-5 backdrop-blur">
 
-                <div className="mt-6 border-t border-white/10 pt-5">
+                  <div className="flex items-center justify-between gap-2">
 
-                  <p className="text-xs text-white/40">
-                    Course
-                  </p>
+                    <p className="text-xs uppercase tracking-wider text-[#d7a93b]/80">
+                      Admission Number
+                    </p>
 
-                  <p className="mt-1 text-sm font-semibold text-white/90">
-                    {student.course}
-                  </p>
+                    <Award
+                      size={17}
+                      className="text-[#d7a93b]"
+                    />
 
-                </div>
+                  </div>
 
-                {/* =================================================
-                    ADMISSION NUMBER
-                ================================================= */}
-
-                <div className="mt-5 border-t border-white/10 pt-5">
-
-                  <p className="text-xs text-white/40">
-                    Admission Number
-                  </p>
-
-                  <p className="mt-1 break-all font-mono text-sm font-bold text-[#d7a93b]">
+                  <p className="mt-2 break-all font-mono text-sm font-bold text-[#d7a93b]">
 
                     {admissionNumber ||
                       'Not Yet Assigned'}
 
                   </p>
 
-                </div>
+                  <p className="mt-3 text-xs text-white/50">
 
-                {/* APPLICATION FEE */}
-
-                <div className="mt-5 border-t border-white/10 pt-5">
-
-                  <p className="text-xs text-white/40">
-                    Application Fee
-                  </p>
-
-                  <p className="mt-1 text-lg font-bold text-[#d7a93b]">
-
-                    KSh{' '}
-
-                    {Number(
-                      student.application_fee || 0
-                    ).toLocaleString()}
+                    {hasActiveAdmission
+                      ? 'Official admission record'
+                      : applicationApproved
+                      ? 'Awaiting admission record'
+                      : 'Available after admission'}
 
                   </p>
 
@@ -1063,198 +493,35 @@ export default async function StudentDashboardPage() {
 
               </div>
 
-            </section>
+            </div>
 
-            {/* =================================================
-                LOWER GRID
-            ================================================= */}
+          </section>
 
-            <section className="mt-6 grid gap-6 lg:grid-cols-2">
+          {/* =================================================
+              LMS NOTICE
+          ================================================= */}
 
-              {/* =================================================
-                  APPLICATION INFORMATION
-              ================================================= */}
+          {hasActiveAdmission && (
+            <section className="mt-6 rounded-2xl border border-[#0f4f3f]/10 bg-white p-5 shadow-sm">
 
-              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-
-                <div className="flex items-center justify-between">
-
-                  <div>
-
-                    <h3 className="font-bold text-[#0c1f1a]">
-                      Application Information
-                    </h3>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Your submitted details.
-                    </p>
-
-                  </div>
-
-                  <Link
-                    href="/student/dashboard/application"
-                    className="flex items-center gap-1 text-xs font-semibold text-[#0f4f3f] hover:text-[#d7a93b]"
-                  >
-
-                    View All
-
-                    <ChevronRight
-                      size={15}
-                    />
-
-                  </Link>
-
-                </div>
-
-                <div className="mt-6 divide-y divide-gray-100">
-
-                  <DetailRow
-                    label="Full Name"
-                    value={fullName}
-                  />
-
-                  <DetailRow
-                    label="Application Number"
-                    value={
-                      student.application_number
-                    }
-                  />
-
-                  {/* =================================================
-                      ADMISSION NUMBER
-                  ================================================= */}
-
-                  <DetailRow
-                    label="Admission Number"
-                    value={
-                      admissionNumber ||
-                      'Not Yet Assigned'
-                    }
-                    highlight={
-                      Boolean(
-                        admissionNumber
-                      )
-                    }
-                  />
-
-                  <DetailRow
-                    label="Mobile Number"
-                    value={student.mobile}
-                  />
-
-                  <DetailRow
-                    label="Email Address"
-                    value={student.email}
-                  />
-
-                  <DetailRow
-                    label="County"
-                    value={
-                      student.county ||
-                      '—'
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-              {/* =================================================
-                  QUICK ACTIONS
-              ================================================= */}
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-
-                <div>
-
-                  <h3 className="font-bold text-[#0c1f1a]">
-                    Quick Actions
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    Quickly access important portal features.
-                  </p>
-
-                </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-
-                  <ActionLink
-                    href="/student/dashboard/application"
-                    icon={
-                      <FileText
-                        size={19}
-                      />
-                    }
-                    title="My Application"
-                    description="View submitted details"
-                  />
-
-                  <ActionLink
-                    href="/student/dashboard/payment"
-                    icon={
-                      <CreditCard
-                        size={19}
-                      />
-                    }
-                    title="Payment & Receipt"
-                    description="Check payment status"
-                  />
-
-                  <ActionLink
-                    href="/student/dashboard/admission"
-                    icon={
-                      <GraduationCap
-                        size={19}
-                      />
-                    }
-                    title="Admission"
-                    description="Check admission status"
-                  />
-
-                  <ActionLink
-                    href="/student/dashboard/documents"
-                    icon={
-                      <FolderOpen
-                        size={19}
-                      />
-                    }
-                    title="Documents"
-                    description="View submitted documents"
-                  />
-
-                </div>
-
-              </div>
-
-            </section>
-
-            {/* =================================================
-                CONTACT / SUPPORT
-            ================================================= */}
-
-            <section className="mt-6 rounded-2xl border border-[#d7a93b]/20 bg-[#fffdf5] p-6">
-
-              <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
                 <div className="flex items-start gap-4">
 
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
 
-                    <Phone
-                      size={20}
-                    />
+                    <BookOpen size={21} />
 
                   </div>
 
                   <div>
 
                     <h3 className="font-bold text-[#0c1f1a]">
-                      Need help with your application?
+                      Your Academic Portal is Ready
                     </h3>
 
-                    <p className="mt-1 text-sm leading-6 text-gray-600">
-                      Contact the admissions office if you need assistance with your application or admission process.
+                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                      Access your courses, learning materials, assignments, quizzes and academic progress.
                     </p>
 
                   </div>
@@ -1262,87 +529,536 @@ export default async function StudentDashboardPage() {
                 </div>
 
                 <Link
-                  href="/student/dashboard/contact"
+                  href="/student/dashboard/courses"
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0f4f3f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0c3f32]"
                 >
-
-                  Contact Admissions
-
-                  <ChevronRight
-                    size={17}
-                  />
-
+                  Go to My Courses
+                  <ChevronRight size={17} />
                 </Link>
 
               </div>
 
             </section>
+          )}
 
-            {/* =================================================
-                FOOTER
-            ================================================= */}
+          {/* =================================================
+              SUMMARY CARDS
+          ================================================= */}
 
-            <div className="py-8 text-center">
+          <section className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-              <p className="text-xs text-gray-400">
-                © {new Date().getFullYear()} Shifah Medical Training College.
-                All rights reserved.
+            <StatusCard
+              title="Application Status"
+              value={String(applicationStatus)}
+              icon={<FileText size={21} />}
+              style={applicationStyle}
+            />
+
+            <StatusCard
+              title="Payment Status"
+              value={String(paymentStatus)}
+              icon={<CreditCard size={21} />}
+              style={paymentStyle}
+            />
+
+            {/* ADMISSION */}
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
+
+                  <GraduationCap size={21} />
+
+                </div>
+
+                <span className="text-xs font-medium text-gray-400">
+                  ADMISSION
+                </span>
+
+              </div>
+
+              <p className="mt-5 text-xs font-medium uppercase tracking-wider text-gray-400">
+                Admission Number
               </p>
 
-              <p className="mt-1 text-[11px] text-gray-400">
-                Student Portal • Secure Applicant Access
+              <p className="mt-1 break-all font-mono text-sm font-bold leading-6 text-[#0f4f3f]">
+
+                {admissionNumber ||
+                  'Not Yet Assigned'}
+
+              </p>
+
+              <p className="mt-2 text-xs text-gray-400">
+
+                {hasActiveAdmission
+                  ? 'Official admission number'
+                  : applicationApproved
+                  ? 'Awaiting admission record'
+                  : 'Assigned after approval'}
+
               </p>
 
             </div>
 
+            {/* DOCUMENTS */}
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
+
+                  <FolderOpen size={21} />
+
+                </div>
+
+                <span className="text-xs font-medium text-gray-400">
+                  DOCUMENTS
+                </span>
+
+              </div>
+
+              <p className="mt-5 text-xs font-medium uppercase tracking-wider text-gray-400">
+                Submitted
+              </p>
+
+              <p className="mt-1 text-2xl font-bold text-[#0c1f1a]">
+
+                {submittedDocuments}
+
+                <span className="ml-1 text-sm font-medium text-gray-400">
+                  / 3
+                </span>
+
+              </p>
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              MAIN GRID
+          ================================================= */}
+
+          <section className="mt-6 grid gap-6 xl:grid-cols-3">
+
+            {/* APPLICATION PROGRESS */}
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm xl:col-span-2">
+
+              <div className="flex items-start justify-between">
+
+                <div>
+
+                  <h3 className="font-bold text-[#0c1f1a]">
+                    Application Progress
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Track your application journey.
+                  </p>
+
+                </div>
+
+                <span className="text-lg font-bold text-[#0f4f3f]">
+                  {progress}%
+                </span>
+
+              </div>
+
+              <div className="mt-6">
+
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+
+                  <div
+                    className="h-full rounded-full bg-[#0f4f3f] transition-all"
+                    style={{
+                      width: `${progress}%`,
+                    }}
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="mt-7 grid gap-6 md:grid-cols-3">
+
+                <ProgressStep
+                  number="01"
+                  title="Application Submitted"
+                  description="Your application has been received."
+                  complete
+                />
+
+                <ProgressStep
+                  number="02"
+                  title="Application Fee"
+                  description={
+                    paymentComplete
+                      ? 'Payment verified successfully.'
+                      : 'Payment awaiting verification.'
+                  }
+                  complete={paymentComplete}
+                />
+
+                <ProgressStep
+                  number="03"
+                  title="Admission Decision"
+                  description={
+                    applicationApproved
+                      ? hasActiveAdmission
+                        ? `Admitted • ${
+                            admissionNumber ||
+                            'Admission number pending'
+                          }`
+                        : 'You have been admitted. Admission record pending.'
+                      : 'Awaiting admission decision.'
+                  }
+                  complete={applicationApproved}
+                />
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                SELECTED INTAKE
+            ================================================= */}
+
+            <div className="rounded-2xl bg-[#0c1f1a] p-6 text-white shadow-lg">
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-[#d7a93b]">
+
+                <GraduationCap size={22} />
+
+              </div>
+
+              <p className="mt-7 text-xs font-medium uppercase tracking-wider text-white/40">
+                Selected Intake
+              </p>
+
+              <h3 className="mt-2 text-xl font-bold">
+                {student.intake}
+              </h3>
+
+              <div className="mt-6 border-t border-white/10 pt-5">
+
+                <p className="text-xs text-white/40">
+                  Course
+                </p>
+
+                <p className="mt-1 text-sm font-semibold text-white/90">
+                  {student.course}
+                </p>
+
+              </div>
+
+              <div className="mt-5 border-t border-white/10 pt-5">
+
+                <p className="text-xs text-white/40">
+                  Admission Number
+                </p>
+
+                <p className="mt-1 break-all font-mono text-sm font-bold text-[#d7a93b]">
+
+                  {admissionNumber ||
+                    'Not Yet Assigned'}
+
+                </p>
+
+              </div>
+
+              <div className="mt-5 border-t border-white/10 pt-5">
+
+                <p className="text-xs text-white/40">
+                  Application Fee
+                </p>
+
+                <p className="mt-1 text-lg font-bold text-[#d7a93b]">
+
+                  KSh{' '}
+
+                  {Number(
+                    student.application_fee || 0
+                  ).toLocaleString()}
+
+                </p>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              LOWER GRID
+          ================================================= */}
+
+          <section className="mt-6 grid gap-6 lg:grid-cols-2">
+
+            {/* APPLICATION INFORMATION */}
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+
+              <div className="flex items-start justify-between">
+
+                <div>
+
+                  <h3 className="font-bold text-[#0c1f1a]">
+                    Application Information
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Your submitted details.
+                  </p>
+
+                </div>
+
+                <Link
+                  href="/student/dashboard/application"
+                  className="flex items-center gap-1 text-xs font-semibold text-[#0f4f3f] hover:text-[#d7a93b]"
+                >
+                  View All
+                  <ChevronRight size={15} />
+                </Link>
+
+              </div>
+
+              <div className="mt-6 divide-y divide-gray-100">
+
+                <DetailRow
+                  label="Full Name"
+                  value={fullName}
+                />
+
+                <DetailRow
+                  label="Application Number"
+                  value={
+                    student.application_number
+                  }
+                />
+
+                <DetailRow
+                  label="Admission Number"
+                  value={
+                    admissionNumber ||
+                    'Not Yet Assigned'
+                  }
+                  highlight={Boolean(admissionNumber)}
+                />
+
+                <DetailRow
+                  label="Mobile Number"
+                  value={student.mobile}
+                />
+
+                <DetailRow
+                  label="Email Address"
+                  value={student.email}
+                />
+
+                <DetailRow
+                  label="County"
+                  value={
+                    student.county || '—'
+                  }
+                />
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                QUICK ACTIONS
+            ================================================= */}
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+
+              <div>
+
+                <h3 className="font-bold text-[#0c1f1a]">
+                  Quick Actions
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Quickly access important portal features.
+                </p>
+
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
+                <ActionLink
+                  href="/student/dashboard/application"
+                  icon={<FileText size={19} />}
+                  title="My Application"
+                  description="View submitted details"
+                />
+
+                <ActionLink
+                  href="/student/dashboard/payment"
+                  icon={<CreditCard size={19} />}
+                  title="Payment & Receipt"
+                  description="Check payment status"
+                />
+
+                <ActionLink
+                  href="/student/dashboard/admission"
+                  icon={<GraduationCap size={19} />}
+                  title="Admission"
+                  description="Check admission status"
+                />
+
+                <ActionLink
+                  href="/student/dashboard/documents"
+                  icon={<FolderOpen size={19} />}
+                  title="Documents"
+                  description="View submitted documents"
+                />
+
+                {hasActiveAdmission && (
+                  <ActionLink
+                    href="/student/dashboard/courses"
+                    icon={<BookOpen size={19} />}
+                    title="My Courses"
+                    description="Access your academic courses"
+                  />
+                )}
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              ACADEMIC SHORTCUTS
+          ================================================= */}
+
+          {hasActiveAdmission && (
+            <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+
+              <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f]">
+
+                    <BookOpen size={21} />
+
+                  </div>
+
+                  <div>
+
+                    <h3 className="font-bold text-[#0c1f1a]">
+                      Academic Learning
+                    </h3>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Continue your learning journey at Shifah MTC.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+
+                  <Link
+                    href="/student/dashboard/courses"
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[#0c1f1a] transition hover:border-[#0f4f3f] hover:bg-[#0f4f3f]/5"
+                  >
+                    <BookOpen size={16} />
+                    Courses
+                  </Link>
+
+                  <Link
+                    href="/student/dashboard/assignments"
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[#0c1f1a] transition hover:border-[#0f4f3f] hover:bg-[#0f4f3f]/5"
+                  >
+                    <ClipboardList size={16} />
+                    Assignments
+                  </Link>
+
+                  <Link
+                    href="/student/dashboard/results"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#0f4f3f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0c3f32]"
+                  >
+                    <BarChart3 size={16} />
+                    Results
+                  </Link>
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* =================================================
+              CONTACT
+          ================================================= */}
+
+          <section className="mt-6 rounded-2xl border border-[#d7a93b]/20 bg-[#fffdf5] p-6">
+
+            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+
+              <div className="flex items-start gap-4">
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#d7a93b]/15 text-[#a67d13]">
+
+                  <Phone size={20} />
+
+                </div>
+
+                <div>
+
+                  <h3 className="font-bold text-[#0c1f1a]">
+                    Need help?
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-600">
+                    Contact the admissions office if you need assistance with your application, admission or student portal.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <Link
+                href="/student/dashboard/contact"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0f4f3f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0c3f32]"
+              >
+                Contact Admissions
+                <ChevronRight size={17} />
+              </Link>
+
+            </div>
+
+          </section>
+
+          {/* =================================================
+              FOOTER
+          ================================================= */}
+
+          <div className="py-8 text-center">
+
+            <p className="text-xs text-gray-400">
+              © {new Date().getFullYear()} Shifah Medical Training College.
+              All rights reserved.
+            </p>
+
+            <p className="mt-1 text-[11px] text-gray-400">
+              Student Portal • Secure {portalRole} Access
+            </p>
+
           </div>
 
-        </main>
-
-      </div>
-
+        </div>
+      </main>
     </div>
-  );
-}
-
-/* =========================================================
-   SIDEBAR ITEM
-========================================================= */
-
-function SidebarItem({
-  href,
-  icon,
-  label,
-  active = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-}) {
-
-  return (
-    <Link
-      href={href}
-      className={`
-        flex items-center gap-3 rounded-xl
-        px-3.5 py-3 text-sm font-medium
-        transition
-        ${
-          active
-            ? 'bg-[#d7a93b] text-[#0c1f1a] shadow-sm'
-            : 'text-white/65 hover:bg-white/10 hover:text-white'
-        }
-      `}
-    >
-
-      {icon}
-
-      <span>
-        {label}
-      </span>
-
-    </Link>
   );
 }
 
@@ -1358,13 +1074,12 @@ function StatusCard({
 }: {
   title: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   style: {
     wrapper: string;
     dot: string;
   };
 }) {
-
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
 
@@ -1438,7 +1153,6 @@ function ProgressStep({
   description: string;
   complete: boolean;
 }) {
-
   return (
     <div className="flex gap-3">
 
@@ -1456,9 +1170,7 @@ function ProgressStep({
       >
 
         {complete ? (
-          <CheckCircle2
-            size={17}
-          />
+          <CheckCircle2 size={17} />
         ) : (
           number
         )}
@@ -1503,7 +1215,6 @@ function DetailRow({
   value: string | null | undefined;
   highlight?: boolean;
 }) {
-
   return (
     <div className="flex items-center justify-between gap-4 py-3">
 
@@ -1543,11 +1254,10 @@ function ActionLink({
   description,
 }: {
   href: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 }) {
-
   return (
     <Link
       href={href}
@@ -1555,9 +1265,7 @@ function ActionLink({
     >
 
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f4f3f]/10 text-[#0f4f3f] transition group-hover:bg-[#0f4f3f] group-hover:text-white">
-
         {icon}
-
       </div>
 
       <div className="min-w-0 flex-1">
