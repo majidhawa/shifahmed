@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Course } from '@/data/site';
-
 export function CourseCard({ course }: { course: Course }) {
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-brand-green/20">

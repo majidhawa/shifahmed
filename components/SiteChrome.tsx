@@ -54,24 +54,14 @@ if (
   ) {
     return <>{children}</>;
   }
-  if (
-  pathname === '/lecturer/login' ||
-  pathname.startsWith('/lecturer/login/')
-) {
-  return <>{children}</>;
-}
+
    if (
     pathname === '/parent/dashboard' ||
     pathname.startsWith('/parent/dashboard/')
   ) {
     return <>{children}</>;
   }
-  if (
-  pathname === '/parent/login' ||
-  pathname.startsWith('/parent/login/')
-) {
-  return <>{children}</>;
-}
+ 
   /* =========================================================
      PUBLIC WEBSITE
   ========================================================= */
